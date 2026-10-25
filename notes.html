@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backpropagation Exam Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1c1d21; --muted: #6b6f78; --line: #dcdde1;
+  --accent: #d9480f; --accent-soft: #fff0e6; --fwd: #1971c2; --fwd-soft: #e7f1fb;
+  --good: #2b8a3e; --good-soft: #e6f4ea; --warn: #b7791f; --warn-soft: #fdf4e3; --code: #f1f1ee;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121316; --panel: #1b1d22; --ink: #e9eaee; --muted: #9a9ea8; --line: #2e3138;
+    --accent: #ff8a4c; --accent-soft: #3a2418; --fwd: #6cb4ff; --fwd-soft: #172a3d;
+    --good: #5ccf74; --good-soft: #17301d; --warn: #f0b955; --warn-soft: #33290f; --code: #23262c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121316; --panel: #1b1d22; --ink: #e9eaee; --muted: #9a9ea8; --line: #2e3138;
+  --accent: #ff8a4c; --accent-soft: #3a2418; --fwd: #6cb4ff; --fwd-soft: #172a3d;
+  --good: #5ccf74; --good-soft: #17301d; --warn: #f0b955; --warn-soft: #33290f; --code: #23262c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; line-height: 1.65; font-size: 16px; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 80px; }
+a { color: var(--fwd); }
+h1 { font-size: 1.8rem; line-height: 1.25; margin: 0 0 6px; letter-spacing: -0.015em; }
+h2 { font-size: 1.3rem; margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); letter-spacing: -0.01em; }
+h2 .n { color: var(--accent); font-family: "JetBrains Mono", monospace; margin-right: 8px; }
+h3 { font-size: 1.05rem; margin: 26px 0 8px; }
+p { margin: 0 0 12px; }
+.sub { color: var(--muted); margin: 0; }
+.mono, code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.9em; }
+code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+.eq { font-family: "JetBrains Mono", monospace; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 10px 0 14px; overflow-x: auto; white-space: pre; font-size: 0.88rem; line-height: 1.7; }
+.eq .hl { color: var(--accent); font-weight: 600; }
+.eq .fw { color: var(--fwd); font-weight: 600; }
+.eq .ok { color: var(--good); font-weight: 700; }
+.eq .c { color: var(--muted); }
+.box { border-radius: 10px; padding: 14px 16px; margin: 14px 0; border: 1px solid var(--line); background: var(--panel); }
+.box > :last-child { margin-bottom: 0; }
+.box.key { border-color: var(--accent); background: var(--accent-soft); }
+.box.warn { border-color: var(--warn); background: var(--warn-soft); }
+.box.good { border-color: var(--good); background: var(--good-soft); }
+.box.fill { border-color: var(--fwd); background: var(--fwd-soft); }
+.tag { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 4px; }
+.key .tag { color: var(--accent); } .warn .tag { color: var(--warn); } .good .tag { color: var(--good); } .fill .tag { color: var(--fwd); }
+table { border-collapse: collapse; width: 100%; margin: 10px 0 16px; font-size: 0.9rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: .04em; }
+td.m { font-family: "JetBrains Mono", monospace; font-size: 0.85rem; white-space: nowrap; }
+.tbl { overflow-x: auto; }
+nav.toc { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 20px 0; }
+nav.toc ol { margin: 4px 0 0; padding-left: 22px; columns: 2; column-gap: 28px; font-size: 0.92rem; }
+@media (max-width: 600px) { nav.toc ol { columns: 1; } }
+nav.toc li { margin: 2px 0; break-inside: avoid; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; font-size: 0.9rem; }
+svg text { fill: var(--ink); font-family: "JetBrains Mono", monospace; }
+.fig { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 14px 0; }
+.fig figcaption { font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
+ol.steps > li { margin-bottom: 8px; }
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 12px 0; }
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 8px; }
+.ans { color: var(--good); font-weight: 700; }
+footer { margin-top: 48px; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--line); padding-top: 14px; }
+@media print { nav.toc, .top a { display: none; } details { border: none; } h2 { break-after: avoid; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="./">← w₂₃₁ visualizer</a><span class="mono" style="color:var(--muted)">CS6910 · Week 3 (Lecture 4)</span></div>
+  <h1>Backpropagation: exam notes</h1>
+  <p class="sub">Mitesh Khapra ki Week 2–3 slides aur Week 3 PYQs (Ashish Maurya ki annotated copy) se banaye gaye notes. Peeche kaise jaana hai, ek rule mein.</p>
+
+  <nav class="toc"><b>Contents</b>
+    <ol>
+      <li><a href="#cheat">Exam cheat-sheet</a></li>
+      <li><a href="#notation">Notation (sabse pehle)</a></li>
+      <li><a href="#idea">Big idea: blame peeche bhejna</a></li>
+      <li><a href="#loop">Back jaane ka 4-line loop</a></li>
+      <li><a href="#output">Step 1: output gradient</a></li>
+      <li><a href="#hidden">Step 2: hidden layer tak</a></li>
+      <li><a href="#act">Step 3: activation ke through</a></li>
+      <li><a href="#weights">Step 4: weights & biases</a></li>
+      <li><a href="#gd">Gradient descent update</a></li>
+      <li><a href="#missing">Question mein kuch missing? Defaults</a></li>
+      <li><a href="#pyq">Solved PYQs (5 patterns)</a></li>
+      <li><a href="#traps">Common traps</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <h2 id="cheat"><span class="n">01</span>Exam cheat-sheet</h2>
+  <div class="box key">
+    <div class="tag">Yaad rakhna hai bas yeh</div>
+<div class="eq" style="background:transparent;border:none;padding:4px 0;margin:0">Forward :  a<sub>k</sub> = W<sub>k</sub>·h<sub>k−1</sub> + b<sub>k</sub>      h<sub>k</sub> = g(a<sub>k</sub>)      ŷ = O(a<sub>L</sub>)     (h<sub>0</sub> = x)
+
+Start   :  <span class="hl">∂L/∂a<sub>L</sub> = ŷ − y</span>          <span class="c">(softmax+CE · sigmoid+BCE · linear+½SE)</span>
+
+Loop k = L … 1:
+  weight :  <span class="hl">∂L/∂w<sub>kij</sub> = ∂L/∂a<sub>ki</sub> · h<sub>k−1,j</sub></span>     <span class="c">(TO ka gradient × FROM ka output)</span>
+  bias   :  ∂L/∂b<sub>ki</sub>  = ∂L/∂a<sub>ki</sub>
+  go down:  <span class="hl">∂L/∂h<sub>k−1,j</sub> = Σ<sub>i</sub> w<sub>kij</sub> · ∂L/∂a<sub>ki</sub></span>    <span class="c">(saare paths ka sum)</span>
+  thru g :  <span class="hl">∂L/∂a<sub>k−1,j</sub> = ∂L/∂h<sub>k−1,j</sub> · g′(a<sub>k−1,j</sub>)</span>
+
+g′ :  sigmoid → h(1−h)   tanh → 1−h²   ReLU → 1 if a&gt;0 else 0   linear → 1
+GD :  w<sub>new</sub> = w − η · ∂L/∂w</div>
+  </div>
+
+  <!-- 2 -->
+  <h2 id="notation"><span class="n">02</span>Notation: sabse pehle yeh pakka karo</h2>
+  <p>Lecture 4 (Module 4.1) ka convention. Exam ke questions bhi isi ko follow karte hain.</p>
+  <div class="tbl"><table>
+    <tr><th>Symbol</th><th>Matlab</th></tr>
+    <tr><td class="m">h₀ = x</td><td>Input ko layer 0 ka output maano. Input layer = 0th layer, output layer = L-th layer.</td></tr>
+    <tr><td class="m">a<sub>k</sub></td><td><b>Pre-activation</b> of layer k: weighted sum, activation lagne se <i>pehle</i>. a<sub>k</sub> = b<sub>k</sub> + W<sub>k</sub>h<sub>k−1</sub></td></tr>
+    <tr><td class="m">h<sub>k</sub></td><td><b>Activation</b> (output) of layer k = g(a<sub>k</sub>). g = sigmoid / tanh / ReLU …</td></tr>
+    <tr><td class="m">ŷ = h<sub>L</sub> = O(a<sub>L</sub>)</td><td>Output layer pe alag function O: classification ke liye <b>softmax</b>, regression ke liye <b>linear</b>.</td></tr>
+    <tr><td class="m">W<sub>k</sub> ∈ ℝ<sup>m×p</sup></td><td>Layer k−1 (p neurons) → layer k (m neurons). <b>Rows = current layer, columns = previous layer.</b></td></tr>
+    <tr><td class="m">w<sub>kij</sub></td><td>Layer <b>k</b> ka weight, layer k ke neuron <b>i</b> (TO) tak, layer k−1 ke neuron <b>j</b> (FROM) se.</td></tr>
+    <tr><td class="m">a<sub>ki</sub>, h<sub>ki</sub></td><td>Layer k ke i-th neuron ka pre-activation / activation.</td></tr>
+  </table></div>
+  <div class="box key"><div class="tag">Index rule</div>
+    <p><b>w<sub>k i j</sub> = layer · TO · FROM.</b> Yaad rakhne ka tareeka: a<sub>k</sub> = W<sub>k</sub>h<sub>k−1</sub> mein row i ka dot product h<sub>k−1</sub> ke saath karte hain toh a<sub>ki</sub> milta hai. Toh row = TO, column = FROM.</p>
+    <p>Example: <code>w₂₃₁</code> = layer 2, output neuron 3 tak, hidden neuron 1 se.</p>
+  </div>
+
+  <!-- 3 -->
+  <h2 id="idea"><span class="n">03</span>Big idea: blame peeche bhejna</h2>
+  <p>Slides ka "responsibility" wala story (Module 4.4):</p>
+  <ol class="steps">
+    <li>Output pe loss <code>−log ŷ<sub>ℓ</sub></code> aaya. Hum output layer se poochte hain: "tum galat kyun ho?"</li>
+    <li>Output layer bolti hai: "main utni hi achhi hoon jitne mere neeche ke <b>W<sub>L</sub>, b<sub>L</sub></b> aur <b>h<sub>L−1</sub></b>."</li>
+    <li>W<sub>L</sub>, b<sub>L</sub> poori zimmedaari lete hain. h<sub>L−1</sub> bolta hai: "main utna hi achha hoon jitna mera pre-activation a<sub>L−1</sub>."</li>
+    <li>a<sub>L−1</sub> bolta hai: "main utna hi achha hoon jitne mere neeche ke weights aur hidden layer." Aise hi sabse neeche tak chalte jaate hain.</li>
+  </ol>
+  <p>Kisi bhi weight se <b>seedha</b> baat karna mushkil hai. Isliye hum <b>layers ke through</b> baat karte hain, aur yahi chain rule hai:</p>
+<div class="eq">∂L/∂W<sub>111</sub> = <span class="c">∂L/∂ŷ · ∂ŷ/∂a₃</span> · <span class="c">∂a₃/∂h₂ · ∂h₂/∂a₂</span> · <span class="c">∂a₂/∂h₁ · ∂h₁/∂a₁</span> · ∂a₁/∂W<sub>111</sub>
+               └ output layer ┘   └ prev hidden  ┘   └ prev hidden  ┘   └ weight</div>
+
+  <figure class="fig">
+    <svg viewBox="0 0 780 200" width="100%" role="img" aria-label="Backward flow: L to a_L to h_(L-1) to a_(L-1) to h_(L-2), with weight gradients branching off at each a">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker></defs>
+      <g font-size="14" text-anchor="middle">
+        <rect x="690" y="40" width="70" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/><text x="725" y="67">L</text>
+        <rect x="540" y="40" width="80" height="44" rx="8" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/><text x="580" y="67">a<tspan font-size="11" dy="4">L</tspan></text>
+        <rect x="380" y="40" width="90" height="44" rx="8" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/><text x="425" y="67">h<tspan font-size="11" dy="4">L−1</tspan></text>
+        <rect x="220" y="40" width="90" height="44" rx="8" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/><text x="265" y="67">a<tspan font-size="11" dy="4">L−1</tspan></text>
+        <rect x="40" y="40" width="110" height="44" rx="8" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/><text x="95" y="67">h<tspan font-size="11" dy="4">L−2</tspan> …</text>
+      </g>
+      <g stroke="var(--accent)" stroke-width="2.5" fill="none" marker-end="url(#ar)">
+        <line x1="688" y1="62" x2="624" y2="62"/><line x1="538" y1="62" x2="474" y2="62"/><line x1="378" y1="62" x2="314" y2="62"/><line x1="218" y1="62" x2="154" y2="62"/>
+        <line x1="580" y1="86" x2="580" y2="138"/><line x1="265" y1="86" x2="265" y2="138"/>
+      </g>
+      <g font-size="11.5" text-anchor="middle" fill="var(--muted)">
+        <text x="656" y="30">ŷ − y</text><text x="506" y="30">× Wᵀ</text><text x="346" y="30">⊙ g′(a)</text><text x="186" y="30">× Wᵀ</text>
+      </g>
+      <g font-size="12.5" text-anchor="middle">
+        <text x="580" y="158">∇W<tspan font-size="10" dy="3">L</tspan><tspan dy="-3"> = ∇a</tspan><tspan font-size="10" dy="3">L</tspan><tspan dy="-3">·h</tspan><tspan font-size="10" dy="3">L−1</tspan><tspan dy="-3">ᵀ</tspan></text>
+        <text x="580" y="178">∇b<tspan font-size="10" dy="3">L</tspan><tspan dy="-3"> = ∇a</tspan><tspan font-size="10" dy="3">L</tspan></text>
+        <text x="265" y="158">∇W<tspan font-size="10" dy="3">L−1</tspan><tspan dy="-3"> = ∇a</tspan><tspan font-size="10" dy="3">L−1</tspan><tspan dy="-3">·h</tspan><tspan font-size="10" dy="3">L−2</tspan><tspan dy="-3">ᵀ</tspan></text>
+        <text x="265" y="178">∇b<tspan font-size="10" dy="3">L−1</tspan><tspan dy="-3"> = ∇a</tspan><tspan font-size="10" dy="3">L−1</tspan></text>
+      </g>
+    </svg>
+    <figcaption>Gradient right se left chalta hai. Har <b>a</b> box pe ruk ke us layer ke weights ka gradient nikaal lo. Phir <b>Wᵀ</b> se neeche jao aur <b>g′</b> se activation cross karo.</figcaption>
+  </figure>
+
+  <!-- 4 -->
+  <h2 id="loop"><span class="n">04</span>Back jaane ka 4-line loop</h2>
+  <p>Module 4.8 ka pseudo-code. Poora backprop bas itna hai:</p>
+<div class="eq"><span class="c">// pehle forward pass: saare a₁,h₁,…,a_L, ŷ store karo</span>
+∇<sub>aL</sub> L = −(e(y) − ŷ) = <span class="hl">ŷ − y</span>
+for k = L down to 1:
+    ∇<sub>Wk</sub> L    = ∇<sub>ak</sub> L · h<sub>k−1</sub>ᵀ            <span class="c">// weights of this layer</span>
+    ∇<sub>bk</sub> L    = ∇<sub>ak</sub> L                     <span class="c">// bias of this layer</span>
+    ∇<sub>hk−1</sub> L  = W<sub>k</sub>ᵀ · ∇<sub>ak</sub> L             <span class="c">// go down one layer</span>
+    ∇<sub>ak−1</sub> L  = ∇<sub>hk−1</sub> L ⊙ g′(a<sub>k−1</sub>)       <span class="c">// cross the activation</span></div>
+  <div class="box good"><div class="tag">Exam strategy</div>
+    <p>Question chahe kisi bhi weight ka gradient maange, yahi order follow karo:</p>
+    <ol style="margin:0;padding-left:20px">
+      <li><b>Forward pass</b> karo aur saare a, h, ŷ likh lo. Inki zaroorat peeche aate waqt padegi.</li>
+      <li><b>Output pe ∂L/∂a<sub>L</sub></b> nikaalo (mostly ŷ − y).</li>
+      <li>Jis layer ka weight chahiye, wahan tak <b>Wᵀ aur g′ se neeche aao</b>.</li>
+      <li>Wahan <b>∂L/∂a (TO) × h (FROM)</b> karo. Answer mil gaya.</li>
+    </ol>
+  </div>
+
+  <!-- 5 -->
+  <h2 id="output"><span class="n">05</span>Step 1: output gradient ∂L/∂a<sub>L</sub></h2>
+  <h3>Softmax + Cross-entropy (lecture ka main case)</h3>
+  <p>Loss: <code>L = −Σ<sub>c</sub> y<sub>c</sub> log ŷ<sub>c</sub> = −log ŷ<sub>ℓ</sub></code>, jahan ℓ = true class. y one-hot hai, toh sirf true class wala term bachta hai.</p>
+  <p>Derivation (Module 4.5) ka short version:</p>
+<div class="eq">∂L/∂ŷ<sub>i</sub>   = −1<sub>(i=ℓ)</sub> / ŷ<sub>ℓ</sub>                       <span class="c">(sirf true class ka non-zero)</span>
+∂ŷ<sub>ℓ</sub>/∂a<sub>Li</sub>  = ŷ<sub>ℓ</sub>(1<sub>(i=ℓ)</sub> − ŷ<sub>i</sub>)                  <span class="c">(softmax ka quotient rule)</span>
+∂L/∂a<sub>Li</sub>  = −1/ŷ<sub>ℓ</sub> · ŷ<sub>ℓ</sub>(1<sub>(i=ℓ)</sub> − ŷ<sub>i</sub>) = <span class="hl">−(1<sub>(i=ℓ)</sub> − ŷ<sub>i</sub>) = ŷ<sub>i</sub> − y<sub>i</sub></span>
+
+vector form:  ∇<sub>aL</sub> L = −(e(ℓ) − ŷ) = <span class="hl">ŷ − y</span></div>
+  <p>Matlab true class pe gradient <code>ŷ − 1</code> (negative: "isko upar badhao") aata hai. Baaki classes pe <code>ŷ − 0</code> (positive: "isko neeche girao").</p>
+
+  <h3>Output / loss combinations: yeh table ratt lo</h3>
+  <div class="tbl"><table>
+    <tr><th>Problem</th><th>Output O</th><th>Loss</th><th>∂L/∂a<sub>L</sub></th></tr>
+    <tr><td>Multi-class</td><td>softmax</td><td>Cross-entropy</td><td class="m">ŷ − y</td></tr>
+    <tr><td>Binary</td><td>sigmoid</td><td>Binary CE</td><td class="m">ŷ − y</td></tr>
+    <tr><td>Regression</td><td>linear</td><td>½(ŷ − y)²</td><td class="m">ŷ − y</td></tr>
+    <tr><td>(Week 2 toy)</td><td>sigmoid</td><td>½(ŷ − y)²</td><td class="m">(ŷ − y)·ŷ(1 − ŷ)</td></tr>
+  </table></div>
+  <div class="box warn"><div class="tag">Trap</div>
+    <p>Pehle teen cases mein answer <code>ŷ − y</code> aata hai, isliye log chauthe case mein bhi wahi likh dete hain. <b>Sigmoid output + squared error</b> mein extra <code>ŷ(1−ŷ)</code> factor lagta hai, kyunki sigmoid ka derivative cancel nahi hota. Aur <b>linear output</b> mein <code>ŷ(1−ŷ)</code> <i>mat</i> lagao, kyunki wahan ∂ŷ/∂a = 1 hai.</p>
+  </div>
+
+  <!-- 6 -->
+  <h2 id="hidden"><span class="n">06</span>Step 2: hidden layer tak jaana (∂L/∂h)</h2>
+  <p>Ek hidden neuron h<sub>k−1,j</sub> agli layer ke <b>har</b> neuron ko feed karta hai. Toh loss tak pahunchne ke multiple paths hain, aur <b>multi-path chain rule</b> kehta hai ki saare paths ko add karo:</p>
+<div class="eq">∂L/∂h<sub>k−1,j</sub> = Σ<sub>m</sub> ∂L/∂a<sub>k,m</sub> · ∂a<sub>k,m</sub>/∂h<sub>k−1,j</sub> = <span class="hl">Σ<sub>m</sub> w<sub>k,m,j</sub> · ∂L/∂a<sub>k,m</sub></span>
+
+vector form:  ∇<sub>hk−1</sub> L = W<sub>k</sub>ᵀ · ∇<sub>ak</sub> L       <span class="c">(W ka j-th column · upar wala gradient)</span></div>
+  <div class="box key"><div class="tag">Intuition</div>
+    <p>Har output neuron apna error (ŷ<sub>m</sub> − y<sub>m</sub>) wapas bhejta hai, aur woh error <b>usi weight se scale hota hai</b> jisse forward mein signal gaya tha. Hidden neuron saare incoming errors ko add kar leta hai. <b>Σ mat bhoolna</b>: Q56 jaise questions mein yahi sabse common galti hai.</p>
+  </div>
+
+  <!-- 7 -->
+  <h2 id="act"><span class="n">07</span>Step 3: activation ke through (∂L/∂a)</h2>
+<div class="eq">h = g(a)   ⇒   ∂L/∂a<sub>k−1,j</sub> = ∂L/∂h<sub>k−1,j</sub> · <span class="hl">g′(a<sub>k−1,j</sub>)</span>        <span class="c">(element-wise ⊙)</span></div>
+  <div class="tbl"><table>
+    <tr><th>Activation</th><th>g(z)</th><th>g′(z)</th><th>Shortcut (h = g(z))</th></tr>
+    <tr><td>Sigmoid</td><td class="m">1/(1+e<sup>−z</sup>)</td><td class="m">σ(z)(1−σ(z))</td><td class="m">h(1−h)</td></tr>
+    <tr><td>tanh</td><td class="m">(e<sup>z</sup>−e<sup>−z</sup>)/(e<sup>z</sup>+e<sup>−z</sup>)</td><td class="m">1 − tanh²(z)</td><td class="m">1 − h²</td></tr>
+    <tr><td>ReLU</td><td class="m">max(0, z)</td><td class="m">1 if z&gt;0, else 0</td><td>a ≤ 0 ho toh gradient wahin <b>ruk jaata</b> hai</td></tr>
+    <tr><td>Linear</td><td class="m">z</td><td class="m">1</td><td>kuch multiply nahi karna</td></tr>
+  </table></div>
+  <p>Sigmoid derivative ki proof (Module 4.9): <code>g′(z) = e<sup>−z</sup>/(1+e<sup>−z</sup>)² = [1/(1+e<sup>−z</sup>)]·[(1+e<sup>−z</sup>−1)/(1+e<sup>−z</sup>)] = g(z)(1−g(z))</code>. Sigmoid ka derivative max 0.25 hota hai (z = 0 pe), isliye har sigmoid layer cross karte waqt gradient chhota hota jaata hai.</p>
+
+  <!-- 8 -->
+  <h2 id="weights"><span class="n">08</span>Step 4: weights aur biases ka gradient</h2>
+<div class="eq">a<sub>ki</sub> = b<sub>ki</sub> + Σ<sub>j</sub> w<sub>kij</sub> h<sub>k−1,j</sub>
+
+∂L/∂w<sub>kij</sub> = ∂L/∂a<sub>ki</sub> · ∂a<sub>ki</sub>/∂w<sub>kij</sub> = <span class="hl">∂L/∂a<sub>ki</sub> · h<sub>k−1,j</sub></span>
+∂L/∂b<sub>ki</sub>  = <span class="hl">∂L/∂a<sub>ki</sub></span>                     <span class="c">(kyunki ∂a/∂b = 1)</span>
+
+matrix form:  ∇<sub>Wk</sub> L = ∇<sub>ak</sub> L · h<sub>k−1</sub>ᵀ     <span class="c">(outer product: column × row)</span></div>
+  <p>3×3 ka example. Har entry = (row ka ∂L/∂a) × (column ka h):</p>
+<div class="eq">        ⎡ ∂L/∂a<sub>k1</sub>·h<sub>k−1,1</sub>   ∂L/∂a<sub>k1</sub>·h<sub>k−1,2</sub>   ∂L/∂a<sub>k1</sub>·h<sub>k−1,3</sub> ⎤
+∇<sub>Wk</sub> L = ⎢ ∂L/∂a<sub>k2</sub>·h<sub>k−1,1</sub>   ∂L/∂a<sub>k2</sub>·h<sub>k−1,2</sub>   ∂L/∂a<sub>k2</sub>·h<sub>k−1,3</sub> ⎥
+        ⎣ ∂L/∂a<sub>k3</sub>·h<sub>k−1,1</sub>   ∂L/∂a<sub>k3</sub>·h<sub>k−1,2</sub>   ∂L/∂a<sub>k3</sub>·h<sub>k−1,3</sub> ⎦</div>
+  <div class="box key"><div class="tag">One-liner</div><p>Weight ka gradient = <b>jahan jaa raha hai (TO) uska ∂L/∂a</b> × <b>jahan se aa raha hai (FROM) uska output h</b>. Isliye index padh ke formula seedha likh sakte ho.</p></div>
+  <p><b>Peeche se kyun?</b> Har layer ka ∇<sub>a</sub> sirf <b>ek baar</b> compute hota hai aur us layer ke saare weights ke liye reuse ho jaata hai. Agar har weight ke liye alag se poora chain rule likhoge toh same cheez baar-baar compute hogi.</p>
+
+  <!-- 9 -->
+  <h2 id="gd"><span class="n">09</span>Gradient descent update</h2>
+<div class="eq">θ<sub>t+1</sub> = θ<sub>t</sub> − η ∇θ<sub>t</sub>        θ = [W₁ … W<sub>L</sub>, b₁ … b<sub>L</sub>]
+
+Week 2, single sigmoid neuron, L = ½(f(x) − y)²:
+∇w = (f(x) − y) · f(x)(1 − f(x)) · x
+∇b = (f(x) − y) · f(x)(1 − f(x))</div>
+  <p>Gradient <b>positive</b> ho toh weight ghatao, <b>negative</b> ho toh badhao (hamesha gradient ke ulte direction mein). Har iteration mein pehle forward, phir backward, phir update. Batch ho toh saare examples ke gradients ka sum (ya average) lo.</p>
+
+  <!-- 10 -->
+  <h2 id="missing"><span class="n">10</span>Question mein kuch missing? Notes se yeh defaults lo</h2>
+  <p>PYQs aksar yeh cheezein <b>bataate nahi</b>, maan ke chalte hain ki tumhe lecture se pata hai:</p>
+  <div class="tbl"><table>
+    <tr><th>Question mein nahi likha</th><th>Lecture se default</th></tr>
+    <tr><td>Softmax + CE ka gradient formula</td><td class="m">∂L/∂a<sub>L</sub> = ŷ − y</td></tr>
+    <tr><td>"Binary classification, cross-entropy" (sigmoid output)</td><td>Binary CE: <code>L = −[y ln ŷ + (1−y) ln(1−ŷ)]</code>, aur ∂L/∂a<sub>out</sub> = ŷ − y</td></tr>
+    <tr><td>Sigmoid ka derivative</td><td class="m">σ′ = σ(1−σ) = h(1−h)</td></tr>
+    <tr><td>Log ka base</td><td>Natural log (ln), jab tak log₂ na likha ho</td></tr>
+    <tr><td>Input ka naam</td><td class="m">h₀ = x</td></tr>
+    <tr><td>"No bias"</td><td>Saare b terms hata do. Bias diagram mein extra node ki tarah dikhe toh uska input = 1</td></tr>
+    <tr><td>Weight index ka order</td><td><code>w<sub>kij</sub></code> = layer · TO · FROM. Doubt ho toh matrix shape se verify karo (rows = agli layer)</td></tr>
+    <tr><td>Rounding</td><td>"Two digits for all calculations" = har intermediate step pe 2 decimal. Answer range isi wajah se thodi wide hoti hai</td></tr>
+    <tr><td>Sach mein info kam hai (jaise y ya activation hi nahi diya)</td><td>Answer <b>−1</b> daalo (question ke Note ke hisaab se)</td></tr>
+  </table></div>
+
+  <!-- 11 -->
+  <h2 id="pyq"><span class="n">11</span>Solved PYQs: 5 patterns jo baar-baar aate hain</h2>
+
+  <h3>Pattern A · Quiz-1 Sept 25 (Q53–56): softmax + CE, ek hidden sigmoid neuron</h3>
+  <p><b>Given:</b> x = h₀ = 2, W₁ = 1, W₂ = [w₂₁₁, w₂₂₁, w₂₃₁]ᵀ = [−1, 1, 2]ᵀ, y = [0, 1, 0], no bias, hidden = sigmoid, output = softmax.</p>
+  <div class="box fill"><div class="tag">Notes se bhara gaya</div><p>Question ∂L/∂a = ŷ − y aur σ′ = h(1−h) nahi deta. Dono Section 05 aur 07 se lo.</p></div>
+<div class="eq"><span class="c">── Forward ──</span>
+a₁ = W₁x = 2                         h₁ = σ(2) = <span class="fw">0.88</span>          <span class="c">← Q53 (0.84–0.92)</span>
+a₂ = W₂h₁ = [−0.88, 0.88, 1.76]
+ŷ  = softmax(a₂) = [0.048, 0.279, 0.673]
+L  = −ln ŷ₂ = −ln 0.279 = <span class="fw">1.28</span>                         <span class="c">← Q54 (1.22–1.32)</span>
+
+<span class="c">── Backward ──</span>
+∂L/∂a₂ = ŷ − y = [0.048, <span class="hl">−0.721</span>, 0.673]
+
+Q55: ∂L/∂w₂₃₁ = ∂L/∂a₂₃ · h₁ = 0.673 × 0.88 = <span class="ok">0.59</span>              <span class="c">(0.54–0.64)</span>
+
+Q56: ∂L/∂W₁   = ∂L/∂h₁ · σ′(a₁) · x
+     ∂L/∂h₁   = Σⱼ w₂ⱼ₁ (ŷⱼ − yⱼ)                <span class="c">← 3 paths ka SUM</span>
+              = (−1)(0.048) + (1)(−0.721) + (2)(0.673) = 0.577
+     σ′(a₁)   = h₁(1 − h₁) = 0.88 × 0.12 = 0.1056
+     ∂L/∂W₁   = 0.577 × 0.1056 × 2 = <span class="ok">0.12</span>              <span class="c">(0.06–0.18)</span></div>
+  <p>Step-by-step animation ke liye <a href="./">w₂₃₁ visualizer</a> dekho.</p>
+
+  <h3>Pattern B · Quiz-1 Jan 26 (Q12–13): binary, sigmoid output, biases ke saath</h3>
+  <p><b>Given:</b> x = 1, y = 1. Hidden: w₁ = 1, b₁₁ = 0, w₂ = −1, b₁₂ = 0. Output: v₁ = 1, v₂ = 1, b₂₁ = 1. Dono layers sigmoid, loss = cross-entropy.</p>
+  <div class="box fill"><div class="tag">Notes se bhara gaya</div><p>Binary + sigmoid output + "cross entropy" ka matlab hai <b>binary CE</b>, toh ∂L/∂a<sub>out</sub> = ŷ − y. Question yeh nahi batata.</p></div>
+<div class="eq"><span class="c">── Forward ──</span>
+a₁₁ = w₁x + b₁₁ = 1          h₁ = σ(1)  = 0.731
+a₁₂ = w₂x + b₁₂ = −1         h₂ = σ(−1) = 0.269
+a₂  = v₁h₁ + v₂h₂ + b₂₁ = 0.731 + 0.269 + 1 = 2.0
+ŷ   = σ(2) = <span class="ok">0.88</span>                                      <span class="c">← Q12 (0.86–0.90)</span>
+
+<span class="c">── Backward (w₁ = x → h₁) ──</span>
+∂L/∂a₂  = ŷ − y = 0.881 − 1 = −0.119
+∂L/∂h₁  = v₁ · ∂L/∂a₂ = −0.119                <span class="c">(h₁ sirf ek output ko feed karta hai)</span>
+∂L/∂a₁₁ = −0.119 × h₁(1−h₁) = −0.119 × 0.197 = −0.0234
+∂L/∂w₁  = ∂L/∂a₁₁ · x = <span class="ok">−0.02</span>                          <span class="c">← Q13 (−0.04–0.00)</span></div>
+
+  <h3>Pattern C · Quiz-1 May 25 (Q46–47): regression, linear output</h3>
+  <p><b>Given:</b> x = −ln 3, y = 1 + 1/ln 3. w₁ = w₂ = 1 (input → do sigmoid neurons), w₃ = 8, w₄ = −4 (→ linear output). L = ½(ŷ − y)², no bias.</p>
+<div class="eq"><span class="c">── Forward ──</span>
+a₁ = a₂ = 1·(−ln 3) = −ln 3      h₁ = h₂ = 1/(1 + e<sup>ln 3</sup>) = 1/(1+3) = 0.25
+ŷ  = w₃h₁ + w₄h₂ = 8(0.25) − 4(0.25) = <span class="ok">1</span>                     <span class="c">← Q46</span>
+
+<span class="c">── Backward ──</span>
+∂L/∂ŷ = ŷ − y = −1/ln 3                     <span class="c">(linear output ⇒ ∂ŷ/∂a = 1, koi ŷ(1−ŷ) nahi)</span>
+∂L/∂w₁ = (ŷ − y) · w₃ · h₁(1−h₁) · x
+       = (−1/ln 3) · 8 · (0.25 × 0.75) · (−ln 3) = 8 × 0.1875 = <span class="ok">1.5</span>   <span class="c">← Q47</span></div>
+  <div class="box warn"><div class="tag">Annotated PDF mein confusion</div><p>Page 12 pe <code>(ŷ−y)·ŷ(1−ŷ)·x₁</code> likha hai. Woh formula <b>sigmoid output wale single neuron</b> ka hai, yahan apply nahi hota. Sahi path page 11 wala hai: ŷ → h₁ (w₃) → a₁ (σ′) → w₁ (x). Answer 1.5 usi se aata hai.</p></div>
+
+  <h3>Pattern D · Quiz-1 Sept 24: single sigmoid neuron, ek GD step, phir naya loss</h3>
+  <p><b>Given:</b> x = [1, 0.5, 1], w = [0.5, 1, 0.5], b = 1, y = 0, L = ½(y − ŷ)², η = 2.</p>
+<div class="eq">z = wᵀx + b = 0.5 + 0.5 + 0.5 + 1 = 2.5         ŷ = σ(2.5) = 0.924       L = 0.427
+
+δ = (ŷ − y)·ŷ(1 − ŷ) = 0.924 × 0.924 × 0.076 = 0.065      <span class="c">(sigmoid + SE ⇒ extra ŷ(1−ŷ))</span>
+∇w = δ·x = [0.065, 0.032, 0.065]      ∇b = δ = 0.065
+
+w<sub>new</sub> = w − 2∇w = [0.37, 0.935, 0.37]      b<sub>new</sub> = 1 − 2(0.065) = 0.87
+z<sub>new</sub> = 0.37 + 0.4675 + 0.37 + 0.87 = 2.08     ŷ<sub>new</sub> = σ(2.08) = 0.889
+L<sub>new</sub> = ½(0.889)² = <span class="ok">0.395</span>                                      <span class="c">(0.37–0.41)</span></div>
+  <p>Loss 0.427 se 0.395 pe aa gaya, matlab update sahi direction mein hua.</p>
+
+  <h3>Pattern E · Quiz-2 2025 (Q243–244): deep thin ReLU chain</h3>
+  <p><b>Given:</b> x = 1, y = 0. n−1 hidden layers mein ek-ek ReLU neuron, output linear, L = ½(ŷ − y)², no bias, saare w<sub>i</sub> = k &gt; 0.</p>
+<div class="eq">Forward: har layer k se multiply karti hai (ReLU positive values ko waise hi pass karta hai)
+         ŷ = k·k·…·k·x = <span class="ok">kⁿ</span>                                    <span class="c">← Q243</span>
+
+Backward: ∂L/∂w₁ = (ŷ − y) · [w<sub>n</sub> · w<sub>n−1</sub> ⋯ w₂] · x       <span class="c">(ReLU′ = 1, sab positive hai)</span>
+                 = kⁿ · kⁿ⁻¹ · 1 = <span class="ok">k²ⁿ⁻¹</span>                        <span class="c">← Q244</span></div>
+  <p>Yeh lecture ka "deep but thin network" case hai: ek hi path, toh chain rule mein seedha multiply karte jao.</p>
+
+  <details><summary>Bonus · Zero-initialisation wale MCQs (Sept 25 Q61–62)</summary>
+    <p>Setup: hidden layer sigmoid, output softmax, W₁ random, W₂ = 0, bias = 0. Ek GD step ke baad:</p>
+<div class="eq">∇<sub>h1</sub> L = W₂ᵀ · ∇<sub>a2</sub> L = 0ᵀ · (…) = 0     ⇒  ∇<sub>W1</sub> = 0   ⇒  <span class="ok">W₁ same rehta hai (Yes)</span>
+∇<sub>W2</sub> L = ∇<sub>a2</sub> L · h₁ᵀ = (ŷ − y)·h₁ᵀ ≠ 0   ⇒  <span class="ok">W₂ badalta hai (No)</span></div>
+    <p>Rule: kisi layer ke weights zero hon toh <b>us layer se neeche</b> gradient nahi jaata (Wᵀ se multiply hota hai), lekin us layer ke apne weights phir bhi update hote hain (kyunki unka gradient ∇a · hᵀ hai).</p>
+  </details>
+
+  <!-- 12 -->
+  <h2 id="traps"><span class="n">12</span>Common traps: exam se pehle ek baar padh lena</h2>
+  <ol class="steps">
+    <li><b>Σ bhool jaana:</b> hidden neuron agar kai outputs ko feed karta hai toh ∂L/∂h = Σ<sub>m</sub> w<sub>m</sub>(ŷ<sub>m</sub> − y<sub>m</sub>), sirf true class ka term nahi.</li>
+    <li><b>Galat output derivative:</b> ŷ(1−ŷ) sirf sigmoid output + squared error mein lagta hai. Softmax+CE, sigmoid+BCE aur linear+SE teeno mein seedha ŷ − y.</li>
+    <li><b>Index ulta padhna:</b> w<sub>kij</sub> = TO i, FROM j. ∂L/∂w<sub>kij</sub> = ∂L/∂a<sub>ki</sub> × h<sub>k−1,j</sub>.</li>
+    <li><b>h aur a mix karna:</b> σ′ ko <i>a</i> pe evaluate karte hain, lekin shortcut h(1−h) mein <i>h</i> use hota hai. σ′(a₁) = h₁(1−h₁), na ki a₁(1−a₁).</li>
+    <li><b>Weight gradient mein galat h:</b> FROM layer ka <i>output</i> h<sub>k−1</sub> lo, pre-activation nahi. Pehli layer ke liye yeh x hai.</li>
+    <li><b>ReLU dead path:</b> a ≤ 0 ho toh gradient 0 ho jaata hai, aur us path se neeche kuch nahi jaata.</li>
+    <li><b>Rounding:</b> beech ke steps 2 decimal tak round karo jaise question kehta hai. Exact answer bhi range ke andar hi aayega.</li>
+    <li><b>GD ka sign:</b> w − η∇w hota hai, + nahi.</li>
+  </ol>
+
+  <footer>Sources: CS6910 Lecture 3 (Module 3.4, toy sigmoid GD) aur Lecture 4 (Modules 4.1–4.9) by Mitesh M. Khapra; Week 3 PYQ collection by Ashish Maurya. Saare numeric answers dobara compute karke official answer ranges se match kiye gaye hain.</footer>
+</div>
+</body>
+</html>
