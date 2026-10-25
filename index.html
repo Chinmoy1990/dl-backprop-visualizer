@@ -1,1098 +1,388 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
-
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deep Learning PYQ Visualizer: Q53-56 Backpropagation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"
-        rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0b0f19;
-            color: #f1f5f9;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gradient of w231</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1c1d21; --muted: #6b6f78; --line: #dcdde1;
+  --node: #ffffff; --accent: #d9480f; --accent-soft: #fff0e6; --fwd: #1971c2; --fwd-soft: #e7f1fb;
+  --good: #2b8a3e; --good-soft: #e6f4ea; --dim: #c4c6cc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121316; --panel: #1b1d22; --ink: #e9eaee; --muted: #9a9ea8; --line: #2e3138;
+    --node: #23262c; --accent: #ff8a4c; --accent-soft: #3a2418; --fwd: #6cb4ff; --fwd-soft: #172a3d;
+    --good: #5ccf74; --good-soft: #17301d; --dim: #464a53;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121316; --panel: #1b1d22; --ink: #e9eaee; --muted: #9a9ea8; --line: #2e3138;
+  --node: #23262c; --accent: #ff8a4c; --accent-soft: #3a2418; --fwd: #6cb4ff; --fwd-soft: #172a3d;
+  --good: #5ccf74; --good-soft: #17301d; --dim: #464a53;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; line-height: 1.55; }
+.mono, .math { font-family: "JetBrains Mono", ui-monospace, monospace; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+header h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--muted); }
+.q { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font-size: 0.95rem; }
+.q b { color: var(--accent); }
+.given { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 8px; color: var(--muted); font-size: 0.88rem; }
+.given span { white-space: nowrap; }
 
-        .mono {
-            font-family: 'JetBrains Mono', monospace;
-        }
+.grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.card h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
 
-        /* Custom animations for flowing pulses */
-        @keyframes pulseGlow {
+svg text { fill: var(--ink); font-family: "JetBrains Mono", monospace; }
+.edge { stroke: var(--dim); stroke-width: 2; fill: none; transition: stroke .3s, stroke-width .3s; }
+.edge.on { stroke: var(--fwd); stroke-width: 3; }
+.edge.target { stroke: var(--accent); stroke-width: 4; }
+.edge.back { stroke: var(--accent); stroke-width: 4; stroke-dasharray: 9 7; animation: back 0.8s linear infinite; }
+@keyframes back { to { stroke-dashoffset: 32; } }
+.node { fill: var(--node); stroke: var(--dim); stroke-width: 2; transition: all .3s; }
+.node.on { stroke: var(--fwd); stroke-width: 3; fill: var(--fwd-soft); }
+.node.hot { stroke: var(--accent); stroke-width: 3.5; fill: var(--accent-soft); }
+.lbl { font-size: 13px; fill: var(--muted); }
+.wlbl { font-size: 13px; font-weight: 600; }
+.val { font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .35s; }
+.val.show { opacity: 1; }
+.val.f { fill: var(--fwd); }
+.val.b { fill: var(--accent); }
+.wtag rect { fill: var(--panel); stroke: var(--line); }
+.wtag.hot rect { fill: var(--accent-soft); stroke: var(--accent); }
+.wtag.hot text { fill: var(--accent); }
 
-            0%,
-            100% {
-                filter: drop-shadow(0 0 6px currentColor);
-            }
+.stepper { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+button { font: inherit; font-size: 0.9rem; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--ink); }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.dots { display: flex; gap: 5px; margin-left: auto; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); cursor: pointer; }
+.dots i.done { background: var(--fwd); }
+.dots i.bk.done { background: var(--accent); }
+.dots i.cur { outline: 2px solid var(--ink); outline-offset: 1px; }
 
-            50% {
-                filter: drop-shadow(0 0 16px currentColor);
-            }
-        }
+.phase { display: inline-block; font-size: 0.72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; }
+.phase.f { background: var(--fwd-soft); color: var(--fwd); }
+.phase.b { background: var(--accent-soft); color: var(--accent); }
+.phase.g { background: var(--good-soft); color: var(--good); }
+#stepTitle { font-size: 1.15rem; margin: 8px 0 6px; }
+#stepBody p { margin: 0 0 10px; }
+.eq { font-family: "JetBrains Mono", monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0 12px; font-size: 0.9rem; overflow-x: auto; white-space: nowrap; }
+.eq .hl { color: var(--accent); font-weight: 600; }
+.eq .fw { color: var(--fwd); font-weight: 600; }
+.eq .ok { color: var(--good); font-weight: 700; }
+.note { font-size: 0.85rem; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; }
+table.v { border-collapse: collapse; font-family: "JetBrains Mono", monospace; font-size: 0.85rem; margin: 6px 0 12px; width: 100%; }
+table.v td, table.v th { border-bottom: 1px solid var(--line); padding: 5px 6px; text-align: right; }
+table.v th { color: var(--muted); font-weight: 500; }
+table.v td:first-child, table.v th:first-child { text-align: left; }
+table.v tr.hot td { color: var(--accent); font-weight: 600; }
 
-        .glow-active {
-            animation: pulseGlow 1.8s infinite;
-        }
+.chain { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; font-family: "JetBrains Mono", monospace; }
+.chain .box { border: 2px solid var(--line); border-radius: 8px; padding: 8px 10px; text-align: center; min-width: 108px; transition: all .3s; }
+.chain .box small { display: block; color: var(--muted); font-family: Inter, sans-serif; font-size: 0.72rem; }
+.chain .box b { font-size: 1.05rem; }
+.chain .box.lit { border-color: var(--accent); background: var(--accent-soft); }
+.chain .box.ans { border-color: var(--good); background: var(--good-soft); }
+.chain .op { color: var(--muted); font-size: 1.2rem; }
 
-        @keyframes dashForward {
-            to {
-                stroke-dashoffset: -40;
-            }
-        }
-
-        @keyframes dashBackward {
-            to {
-                stroke-dashoffset: 40;
-            }
-        }
-
-        .flow-forward {
-            stroke-dasharray: 8 6;
-            animation: dashForward 1s linear infinite;
-        }
-
-        .flow-backward {
-            stroke-dasharray: 8 6;
-            animation: dashBackward 0.9s linear infinite;
-        }
-
-        .svg-node {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-        }
-
-        .svg-node:hover {
-            filter: brightness(1.25) drop-shadow(0 0 10px rgba(56, 189, 248, 0.6));
-        }
-
-        .svg-edge {
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
-        }
-    </style>
+#lab { margin-top: 16px; }
+.labgrid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .labgrid { grid-template-columns: 1fr; } }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.readout { font-family: "JetBrains Mono", monospace; font-size: 0.88rem; }
+.readout div { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--line); padding: 4px 0; }
+.readout b { color: var(--accent); }
+.curve { stroke: var(--fwd); stroke-width: 2.5; fill: none; }
+.tangent { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }
+.axis { stroke: var(--line); stroke-width: 1; }
+.tick { font-size: 11px; fill: var(--muted); }
+footer { margin-top: 28px; color: var(--muted); font-size: 0.82rem; text-align: center; }
+</style>
 </head>
-
-<body class="min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950">
-
-    <!-- Top Header -->
-    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30 px-4 py-3">
-        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-                <div
-                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-slate-950 text-lg shadow-lg shadow-cyan-500/20">
-                    DL
-                </div>
-                <div>
-                    <h1 class="font-bold text-base sm:text-lg text-white flex items-center gap-2">
-                        Quiz-1 Sept 25 (Q53–56) Interactive Visualizer
-                        <span
-                            class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-medium">Hinglish
-                            Guide</span>
-                    </h1>
-                    <p class="text-xs text-slate-400">Har Node, Weight (<span class="mono text-amber-300">w_231</span>),
-                        Forward Pass aur Backpropagation ko click karke samjho!</p>
-                </div>
-            </div>
-
-            <!-- Mode Switcher Tabs -->
-            <div class="flex flex-wrap items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-                <button onclick="setMode('forward')" id="tab-forward"
-                    class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-cyan-500 text-slate-950 shadow">
-                    1. Forward Pass (Q53-54)
-                </button>
-                <button onclick="setMode('back_w231')" id="tab-back_w231"
-                    class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-300 hover:text-white">
-                    2. Backprop w_231 (Q55)
-                </button>
-                <button onclick="setMode('back_w1')" id="tab-back_w1"
-                    class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-300 hover:text-white">
-                    3. Backprop W_1 (Q56)
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Content Grid -->
-    <main class="max-w-7xl w-full mx-auto flex-1 p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-        <!-- Left/Center Column: Interactive Network Diagram + Stepper (8 cols on lg) -->
-        <div class="lg:col-span-8 flex flex-col gap-4">
-
-            <!-- Stepper Bar & Explanation Banner -->
-            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <div class="flex items-center gap-2">
-                        <span id="mode-badge"
-                            class="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                            FORWARD PASS
-                        </span>
-                        <span id="step-counter" class="text-xs font-semibold text-slate-400 mono">Step 1 / 5</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="prevStep()" id="btn-prev"
-                            class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition disabled:opacity-40">
-                            ← Pichla Step
-                        </button>
-                        <button onclick="nextStep()" id="btn-next"
-                            class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 text-xs font-bold shadow-lg shadow-cyan-500/20 transition">
-                            Agla Step →
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Step Progress Pills -->
-                <div id="step-pills" class="grid grid-cols-5 gap-1.5 mb-3"></div>
-
-                <!-- Dynamic Hinglish Step Explanation Box -->
-                <div id="step-explanation"
-                    class="bg-slate-950/90 border border-slate-800/90 rounded-xl p-3.5 text-sm leading-relaxed">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-
-            <!-- Interactive SVG Canvas Card -->
-            <div
-                class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl relative overflow-hidden flex-1 flex flex-col justify-between">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
-                    <div class="flex items-center gap-4 text-xs">
-                        <span class="flex items-center gap-1.5 text-cyan-400 font-medium">
-                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span> Forward Signal
-                        </span>
-                        <span class="flex items-center gap-1.5 text-rose-400 font-medium">
-                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Backprop Gradient
-                            (Ulta Flow)
-                        </span>
-                    </div>
-                    <span class="text-xs text-slate-400 italic">💡 Tip: Kisi bhi गोले (Node) ya तीर (Weight) par click
-                        karo!</span>
-                </div>
-
-                <!-- Responsive SVG Network Diagram -->
-                <div class="w-full overflow-x-auto">
-                    <svg id="network-svg" viewBox="0 0 920 470" class="w-full h-auto min-w-[680px] select-none">
-                        <defs>
-                            <!-- Arrowheads -->
-                            <marker id="arrow-muted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5"
-                                markerHeight="5" orient="auto-start-reverse">
-                                <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
-                            </marker>
-                            <marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6"
-                                markerHeight="6" orient="auto-start-reverse">
-                                <path d="M 0 1 L 10 5 L 0 9 z" fill="#22d3ee" />
-                            </marker>
-                            <marker id="arrow-rose" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6"
-                                markerHeight="6" orient="auto-start-reverse">
-                                <path d="M 0 1 L 10 5 L 0 9 z" fill="#fb7185" />
-                            </marker>
-                            <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6"
-                                markerHeight="6" orient="auto-start-reverse">
-                                <path d="M 0 1 L 10 5 L 0 9 z" fill="#fbbf24" />
-                            </marker>
-                        </defs>
-
-                        <!-- Column Layer Labels -->
-                        <g class="text-[11px] fill-slate-400 font-semibold uppercase tracking-wider">
-                            <text x="65" y="25" text-anchor="middle">Input Layer</text>
-                            <text x="275" y="25" text-anchor="middle">Hidden Layer (Sigmoid)</text>
-                            <text x="545" y="25" text-anchor="middle">Output Pre-Activation (a₂)</text>
-                            <text x="725" y="25" text-anchor="middle">Softmax (ŷ)</text>
-                            <text x="855" y="25" text-anchor="middle">True y & Loss</text>
-                        </g>
-
-                        <!-- Layer Divider Lines -->
-                        <line x1="140" y1="15" x2="140" y2="450" stroke="#1e293b" stroke-dasharray="4 4" />
-                        <line x1="405" y1="15" x2="405" y2="450" stroke="#1e293b" stroke-dasharray="4 4" />
-                        <line x1="635" y1="15" x2="635" y2="450" stroke="#1e293b" stroke-dasharray="4 4" />
-
-                        <!-- ==================== EDGES (CONNECTIONS) ==================== -->
-                        <!-- Edge W1: x -> a1 -->
-                        <g onclick="inspectElement('W1')" class="svg-edge">
-                            <line id="edge-W1-bg" x1="100" y1="235" x2="202" y2="235" stroke="#334155" stroke-width="5"
-                                marker-end="url(#arrow-muted)" />
-                            <line id="edge-W1-flow" x1="100" y1="235" x2="202" y2="235" stroke="transparent"
-                                stroke-width="4" />
-                            <rect x="118" y="192" width="68" height="34" rx="6" fill="#0f172a" stroke="#475569"
-                                id="badge-W1" />
-                            <text x="152" y="207" text-anchor="middle"
-                                class="text-[11px] fill-amber-300 font-bold mono">W₁ = <tspan id="svg-val-W1">1</tspan>
-                                </text>
-                            <text x="152" y="220" text-anchor="middle"
-                                class="text-[9px] fill-slate-400">Input→Hidden</text>
-                        </g>
-
-                        <!-- Edge Sigmoid internal: a1 -> h1 -->
-                        <g onclick="inspectElement('h1')" class="svg-edge">
-                            <line id="edge-sig-bg" x1="264" y1="235" x2="306" y2="235" stroke="#475569" stroke-width="4"
-                                marker-end="url(#arrow-muted)" />
-                            <line id="edge-sig-flow" x1="264" y1="235" x2="306" y2="235" stroke="transparent"
-                                stroke-width="4" />
-                            <text x="285" y="223" text-anchor="middle"
-                                class="text-[10px] fill-emerald-400 font-bold mono">σ(a₁)</text>
-                        </g>
-
-                        <!-- Edge w_211: h1 -> a_21 (Branch 1 Top) -->
-                        <g onclick="inspectElement('w211')" class="svg-edge">
-                            <path id="edge-w211-bg" d="M 368 220 Q 435 140 505 95" fill="none" stroke="#334155"
-                                stroke-width="4" marker-end="url(#arrow-muted)" />
-                            <path id="edge-w211-flow" d="M 368 220 Q 435 140 505 95" fill="none" stroke="transparent"
-                                stroke-width="4" />
-                            <rect x="398" y="118" width="82" height="34" rx="6" fill="#0f172a" stroke="#475569"
-                                id="badge-w211" />
-                            <text x="439" y="133" text-anchor="middle"
-                                class="text-[11px] fill-amber-300 font-bold mono">w₂₁₁ = <tspan id="svg-val-w211">-1
-                                </tspan></text>
-                            <text x="439" y="146" text-anchor="middle" class="text-[9px] fill-slate-400">L2, Out1,
-                                Hid1</text>
-                        </g>
-
-                        <!-- Edge w_221: h1 -> a_22 (Branch 2 Middle) -->
-                        <g onclick="inspectElement('w221')" class="svg-edge">
-                            <line id="edge-w221-bg" x1="370" y1="235" x2="505" y2="235" stroke="#334155"
-                                stroke-width="4" marker-end="url(#arrow-muted)" />
-                            <line id="edge-w221-flow" x1="370" y1="235" x2="505" y2="235" stroke="transparent"
-                                stroke-width="4" />
-                            <rect x="400" y="192" width="82" height="34" rx="6" fill="#0f172a" stroke="#475569"
-                                id="badge-w221" />
-                            <text x="441" y="207" text-anchor="middle"
-                                class="text-[11px] fill-amber-300 font-bold mono">w₂₂₁ = <tspan id="svg-val-w221">1
-                                </tspan></text>
-                            <text x="441" y="220" text-anchor="middle" class="text-[9px] fill-slate-400">L2, Out2,
-                                Hid1</text>
-                        </g>
-
-                        <!-- Edge w_231: h1 -> a_23 (Branch 3 Bottom - STAR OF Q55!) -->
-                        <g onclick="inspectElement('w231')" class="svg-edge">
-                            <path id="edge-w231-bg" d="M 368 250 Q 435 330 505 375" fill="none" stroke="#334155"
-                                stroke-width="5" marker-end="url(#arrow-muted)" />
-                            <path id="edge-w231-flow" d="M 368 250 Q 435 330 505 375" fill="none" stroke="transparent"
-                                stroke-width="5" />
-                            <rect x="395" y="315" width="90" height="38" rx="7" fill="#0f172a" stroke="#f59e0b"
-                                stroke-width="1.5" id="badge-w231" />
-                            <text x="440" y="332" text-anchor="middle"
-                                class="text-[12px] fill-amber-300 font-extrabold mono">w₂₃₁ = <tspan id="svg-val-w231">2
-                                </tspan></text>
-                            <text x="440" y="346" text-anchor="middle"
-                                class="text-[9px] fill-amber-200/80 font-medium">★ Q55 Target</text>
-                        </g>
-
-                        <!-- Softmax Coupling Box -->
-                        <rect id="softmax-box" x="648" y="48" width="150" height="374" rx="16" fill="#0f172a"
-                            stroke="#334155" stroke-width="1.5" stroke-dasharray="5 3" />
-                        <text x="723" y="412" text-anchor="middle"
-                            class="text-[10px] fill-purple-300 font-semibold">Softmax Coupled Layer</text>
-
-                        <!-- Edges a_2j -> y_hat_j -->
-                        <line id="edge-sm1-bg" x1="580" y1="90" x2="682" y2="90" stroke="#475569" stroke-width="3"
-                            marker-end="url(#arrow-muted)" />
-                        <line id="edge-sm1-flow" x1="580" y1="90" x2="682" y2="90" stroke="transparent"
-                            stroke-width="4" />
-
-                        <line id="edge-sm2-bg" x1="580" y1="235" x2="682" y2="235" stroke="#475569" stroke-width="3"
-                            marker-end="url(#arrow-muted)" />
-                        <line id="edge-sm2-flow" x1="580" y1="235" x2="682" y2="235" stroke="transparent"
-                            stroke-width="4" />
-
-                        <line id="edge-sm3-bg" x1="580" y1="380" x2="682" y2="380" stroke="#475569" stroke-width="3"
-                            marker-end="url(#arrow-muted)" />
-                        <line id="edge-sm3-flow" x1="580" y1="380" x2="682" y2="380" stroke="transparent"
-                            stroke-width="4" />
-
-                        <!-- Edges y_hat_j -> Loss -->
-                        <path id="edge-loss1-bg" d="M 762 90 Q 810 90 838 195" fill="none" stroke="#475569"
-                            stroke-width="2.5" stroke-dasharray="3 3" />
-                        <path id="edge-loss2-bg" d="M 762 235 L 818 235" fill="none" stroke="#475569"
-                            stroke-width="3" />
-                        <path id="edge-loss3-bg" d="M 762 380 Q 810 380 838 275" fill="none" stroke="#475569"
-                            stroke-width="2.5" stroke-dasharray="3 3" />
-                        <path id="edge-loss3-flow" d="M 762 380 Q 810 380 838 275" fill="none" stroke="transparent"
-                            stroke-width="4" />
-
-                        <!-- ==================== NODES ==================== -->
-                        <!-- Node x (Input) -->
-                        <g onclick="inspectElement('x')" id="node-x" class="svg-node">
-                            <circle cx="65" cy="235" r="32" fill="#0f172a" stroke="#38bdf8" stroke-width="3" />
-                            <text x="65" y="230" text-anchor="middle" class="text-xs fill-slate-300 font-bold">x
-                                (h₀)</text>
-                            <text x="65" y="248" text-anchor="middle" class="text-sm fill-cyan-300 font-extrabold mono"
-                                id="svg-val-x">2</text>
-                        </g>
-
-                        <!-- Node a1 (Hidden Pre-activation) -->
-                        <g onclick="inspectElement('a1')" id="node-a1" class="svg-node">
-                            <circle cx="233" cy="235" r="30" fill="#0f172a" stroke="#64748b" stroke-width="2.5" />
-                            <text x="233" y="230" text-anchor="middle"
-                                class="text-xs fill-slate-300 font-bold">a₁</text>
-                            <text x="233" y="247" text-anchor="middle" class="text-xs fill-white font-bold mono"
-                                id="svg-val-a1">2.00</text>
-                        </g>
-
-                        <!-- Node h1 (Hidden Activation Output) -->
-                        <g onclick="inspectElement('h1')" id="node-h1" class="svg-node">
-                            <circle cx="338" cy="235" r="32" fill="#0f172a" stroke="#10b981" stroke-width="3" />
-                            <text x="338" y="229" text-anchor="middle"
-                                class="text-xs fill-emerald-300 font-bold">h₁</text>
-                            <text x="338" y="247" text-anchor="middle"
-                                class="text-sm fill-emerald-400 font-extrabold mono" id="svg-val-h1">0.88</text>
-                            <text x="338" y="282" text-anchor="middle"
-                                class="text-[10px] fill-emerald-400/80 font-medium">★ Q53 Ans: 0.88</text>
-                        </g>
-
-                        <!-- Node a_21 -->
-                        <g onclick="inspectElement('a21')" id="node-a21" class="svg-node">
-                            <circle cx="545" cy="90" r="32" fill="#0f172a" stroke="#64748b" stroke-width="2.5" />
-                            <text x="545" y="84" text-anchor="middle"
-                                class="text-xs fill-slate-300 font-bold">a₂₁</text>
-                            <text x="545" y="102" text-anchor="middle" class="text-xs fill-white font-bold mono"
-                                id="svg-val-a21">-0.88</text>
-                        </g>
-
-                        <!-- Node a_22 -->
-                        <g onclick="inspectElement('a22')" id="node-a22" class="svg-node">
-                            <circle cx="545" cy="235" r="32" fill="#0f172a" stroke="#64748b" stroke-width="2.5" />
-                            <text x="545" y="229" text-anchor="middle"
-                                class="text-xs fill-slate-300 font-bold">a₂₂</text>
-                            <text x="545" y="247" text-anchor="middle" class="text-xs fill-white font-bold mono"
-                                id="svg-val-a22">0.88</text>
-                        </g>
-
-                        <!-- Node a_23 -->
-                        <g onclick="inspectElement('a23')" id="node-a23" class="svg-node">
-                            <circle cx="545" cy="380" r="32" fill="#0f172a" stroke="#64748b" stroke-width="2.5" />
-                            <text x="545" y="374" text-anchor="middle"
-                                class="text-xs fill-slate-300 font-bold">a₂₃</text>
-                            <text x="545" y="392" text-anchor="middle" class="text-xs fill-white font-bold mono"
-                                id="svg-val-a23">1.76</text>
-                        </g>
-
-                        <!-- Node y_hat_1 -->
-                        <g onclick="inspectElement('yhat1')" id="node-yhat1" class="svg-node">
-                            <circle cx="723" cy="90" r="34" fill="#0f172a" stroke="#a855f7" stroke-width="2.5" />
-                            <text x="723" y="83" text-anchor="middle" class="text-xs fill-purple-300 font-bold">ŷ₁
-                                <tspan class="text-[10px] fill-slate-400">(y₁=0)</tspan></text>
-                            <text x="723" y="102" text-anchor="middle"
-                                class="text-xs fill-purple-200 font-extrabold mono" id="svg-val-yhat1">0.048</text>
-                        </g>
-
-                        <!-- Node y_hat_2 -->
-                        <g onclick="inspectElement('yhat2')" id="node-yhat2" class="svg-node">
-                            <circle cx="723" cy="235" r="34" fill="#0f172a" stroke="#a855f7" stroke-width="2.5" />
-                            <text x="723" y="228" text-anchor="middle" class="text-xs fill-purple-300 font-bold">ŷ₂
-                                <tspan class="text-[10px] fill-emerald-400">(y₂=1)</tspan></text>
-                            <text x="723" y="247" text-anchor="middle"
-                                class="text-xs fill-purple-200 font-extrabold mono" id="svg-val-yhat2">0.279</text>
-                        </g>
-
-                        <!-- Node y_hat_3 -->
-                        <g onclick="inspectElement('yhat3')" id="node-yhat3" class="svg-node">
-                            <circle cx="723" cy="380" r="34" fill="#0f172a" stroke="#a855f7" stroke-width="2.5" />
-                            <text x="723" y="373" text-anchor="middle" class="text-xs fill-purple-300 font-bold">ŷ₃
-                                <tspan class="text-[10px] fill-slate-400">(y₃=0)</tspan></text>
-                            <text x="723" y="392" text-anchor="middle"
-                                class="text-xs fill-purple-200 font-extrabold mono" id="svg-val-yhat3">0.673</text>
-                        </g>
-
-                        <!-- Node Loss L -->
-                        <g onclick="inspectElement('loss')" id="node-loss" class="svg-node">
-                            <rect x="818" y="198" width="84" height="74" rx="14" fill="#1e1b4b" stroke="#f43f5e"
-                                stroke-width="3" />
-                            <text x="860" y="224" text-anchor="middle" class="text-xs fill-rose-300 font-bold">Loss
-                                (L)</text>
-                            <text x="860" y="246" text-anchor="middle" class="text-base fill-white font-extrabold mono"
-                                id="svg-val-loss">1.28</text>
-                            <text x="860" y="263" text-anchor="middle" class="text-[9px] fill-rose-300">★ Q54 Ans</text>
-                        </g>
-
-                        <!-- Dynamic Gradient Callout Overlays (Shown in Backprop Modes) -->
-                        <g id="grad-overlay-branch3"
-                            class="opacity-0 transition-opacity duration-300 pointer-events-none">
-                            <rect x="485" y="420" width="295" height="36" rx="8" fill="#4c0519" stroke="#fb7185"
-                                stroke-width="1.5" />
-                            <text x="632" y="442" text-anchor="middle" class="text-[11px] fill-rose-200 font-bold mono">
-                                ∂L/∂a₂₃ = (ŷ₃ - y₃) = 0.673 - 0 = +0.673
-                            </text>
-                        </g>
-
-                        <g id="grad-overlay-branch1"
-                            class="opacity-0 transition-opacity duration-300 pointer-events-none">
-                            <rect x="495" y="28" width="275" height="26" rx="6" fill="#3b0764" stroke="#c084fc"
-                                stroke-width="1" />
-                            <text x="632" y="45" text-anchor="middle"
-                                class="text-[10px] fill-purple-200 font-bold mono">
-                                ∂L/∂a₂₁ = (ŷ₁ - y₁) = 0.048 - 0 = +0.048
-                            </text>
-                        </g>
-
-                        <g id="grad-overlay-branch2"
-                            class="opacity-0 transition-opacity duration-300 pointer-events-none">
-                            <rect x="495" y="168" width="275" height="26" rx="6" fill="#3b0764" stroke="#c084fc"
-                                stroke-width="1" />
-                            <text x="632" y="185" text-anchor="middle"
-                                class="text-[10px] fill-purple-200 font-bold mono">
-                                ∂L/∂a₂₂ = (ŷ₂ - y₂) = 0.279 - 1 = -0.721
-                            </text>
-                        </g>
-                    </svg>
-                </div>
-
-                <!-- Quick Doubt-Buster Buttons at Bottom of Diagram -->
-                <div class="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-2">
-                    <span class="text-xs font-bold text-slate-400 mr-1">🔥 Common Doubts Click Karo:</span>
-                    <button onclick="inspectElement('w231')"
-                        class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-medium transition">
-                        "w_231" mein 2, 3, 1 ka matlab kya hai?
-                    </button>
-                    <button onclick="inspectElement('shortcut')"
-                        class="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-medium transition">
-                        (ŷ₃ - y₃) direct kahan se aaya?
-                    </button>
-                    <button onclick="inspectElement('q55_vs_q56')"
-                        class="px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-xs font-medium transition">
-                        Q55 mein 1 branch aur Q56 mein 3 branches kyun?
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Column: Label Decoder Inspector & Exam Answer Summary Cards (4 cols on lg) -->
-        <div class="lg:col-span-4 flex flex-col gap-4">
-
-            <!-- Interactive Inspector / Decoder Card -->
-            <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-xl">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
-                    <h2 class="font-bold text-sm text-cyan-400 flex items-center gap-2">
-                        <span>🔍 Label & Formula Decoder</span>
-                    </h2>
-                    <span id="inspector-tag"
-                        class="text-[11px] mono px-2 py-0.5 rounded bg-slate-800 text-amber-300 font-semibold">w_231</span>
-                </div>
-                <div id="inspector-content" class="text-xs sm:text-sm space-y-2.5 text-slate-200 leading-relaxed">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-
-            <!-- Handwritten Notes Match Box (Q53 - Q56 All 4 Exam Answers) -->
-            <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-xl">
-                <h2 class="font-bold text-sm text-emerald-400 mb-3 flex items-center justify-between">
-                    <span>📝 Exam Questions (Q53–Q56) Live Scorecard</span>
-                    <span
-                        class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Auto-Calculated</span>
-                </h2>
-                <div class="space-y-2.5 text-xs">
-                    <!-- Q53 -->
-                    <div onclick="setMode('forward'); goToStep(1);"
-                        class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/50 cursor-pointer transition">
-                        <div class="flex justify-between font-bold text-slate-300">
-                            <span>Q53: Hidden Layer Output (h₁)</span>
-                            <span class="mono text-emerald-400 text-sm" id="card-q53">0.88</span>
-                        </div>
-                        <div class="text-[11px] text-slate-400 mt-0.5 mono">h₁ = σ(W₁·x) = 1 / (1 + e⁻²) = 0.8808</div>
-                    </div>
-
-                    <!-- Q54 -->
-                    <div onclick="setMode('forward'); goToStep(4);"
-                        class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-500/50 cursor-pointer transition">
-                        <div class="flex justify-between font-bold text-slate-300">
-                            <span>Q54: Cross-Entropy Loss (L)</span>
-                            <span class="mono text-rose-400 text-sm" id="card-q54">1.28</span>
-                        </div>
-                        <div class="text-[11px] text-slate-400 mt-0.5 mono">L = -ln(ŷ₂) = -ln(0.279) = 1.276 ≈ 1.28
-                        </div>
-                    </div>
-
-                    <!-- Q55 -->
-                    <div onclick="setMode('back_w231'); goToStep(2);"
-                        class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/40 hover:border-amber-400 cursor-pointer transition">
-                        <div class="flex justify-between font-bold text-amber-200">
-                            <span>★ Q55: Gradient ∂L / ∂w₂₃₁</span>
-                            <span class="mono text-amber-300 text-sm font-extrabold" id="card-q55">0.59</span>
-                        </div>
-                        <div class="text-[11px] text-amber-200/80 mt-0.5 mono">(ŷ₃ - y₃) · h₁ = (0.673 - 0) × 0.88 =
-                            0.592</div>
-                    </div>
-
-                    <!-- Q56 -->
-                    <div onclick="setMode('back_w1'); goToStep(3);"
-                        class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-purple-500/50 cursor-pointer transition">
-                        <div class="flex justify-between font-bold text-slate-300">
-                            <span>Q56: Gradient ∂L / ∂W₁</span>
-                            <span class="mono text-purple-400 text-sm" id="card-q56">0.12</span>
-                        </div>
-                        <div class="text-[11px] text-slate-400 mt-0.5 mono">[∑(ŷⱼ - yⱼ)w₂ⱼ₁] · h₁(1 - h₁) · x = 0.121
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Interactive Sliders Playground -->
-            <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-xl">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="font-bold text-xs sm:text-sm text-slate-200">🎛️ Values Change Karke Dekho (Playground)
-                    </h2>
-                    <button onclick="resetExamValues()"
-                        class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold border border-slate-700 transition">
-                        Reset Exam Values
-                    </button>
-                </div>
-
-                <div class="space-y-2.5 text-xs">
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-slate-400">Input <span class="mono text-cyan-300">x</span>:</span>
-                            <span class="mono font-bold text-white" id="lbl-slider-x">2.0</span>
-                        </div>
-                        <input id="slider-x" type="range" min="-2" max="4" step="0.5" value="2"
-                            oninput="updateFromSliders()"
-                            class="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-slate-400">Hidden Weight <span
-                                    class="mono text-amber-300">W₁</span>:</span>
-                            <span class="mono font-bold text-white" id="lbl-slider-W1">1.0</span>
-                        </div>
-                        <input id="slider-W1" type="range" min="-2" max="3" step="0.5" value="1"
-                            oninput="updateFromSliders()"
-                            class="w-full accent-amber-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-slate-400">Target Weight <span class="mono text-amber-300">w₂₃₁</span>
-                                (Q55):</span>
-                            <span class="mono font-bold text-white" id="lbl-slider-w231">2.0</span>
-                        </div>
-                        <input id="slider-w231" type="range" min="-2" max="4" step="0.5" value="2"
-                            oninput="updateFromSliders()"
-                            class="w-full accent-rose-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </main>
-
-    <script>
-        // ==================== STATE & MATH ENGINE ====================
-        const state = {
-            x: 2.0,
-            W1: 1.0,
-            w211: -1.0,
-            w221: 1.0,
-            w231: 2.0,
-            y: [0, 1, 0], // One-hot true label
-            mode: 'back_w231', // Start directly on Q55 Backprop since user asked about it!
-            step: 0,
-            calc: {}
-        };
-
-        function computeNetwork() {
-            const { x, W1, w211, w221, w231, y } = state;
-            // Forward Pass
-            const a1 = W1 * x;
-            const h1 = 1 / (1 + Math.exp(-a1));
-            const h1_rounded = Math.round(h1 * 100) / 100; // Exam uses 2 decimal places (0.88)
-
-            const a21 = w211 * h1_rounded;
-            const a22 = w221 * h1_rounded;
-            const a23 = w231 * h1_rounded;
-
-            const e1 = Math.exp(a21);
-            const e2 = Math.exp(a22);
-            const e3 = Math.exp(a23);
-            const sumE = e1 + e2 + e3;
-
-            const yhat1 = e1 / sumE;
-            const yhat2 = e2 / sumE;
-            const yhat3 = e3 / sumE;
-
-            // Cross entropy loss
-            const loss = -(y[0] * Math.log(yhat1) + y[1] * Math.log(yhat2) + y[2] * Math.log(yhat3));
-
-            // Backpropagation Gradients
-            const dL_da21 = yhat1 - y[0];
-            const dL_da22 = yhat2 - y[1];
-            const dL_da23 = yhat3 - y[2];
-
-            // Q55: dL / dw_231
-            const dL_dw231 = dL_da23 * h1_rounded;
-
-            // Q56: dL / dW_1
-            const dL_dh1 = (dL_da21 * w211) + (dL_da22 * w221) + (dL_da23 * w231);
-            const dh1_da1 = h1_rounded * (1 - h1_rounded);
-            const dL_dW1 = dL_dh1 * dh1_da1 * x;
-
-            state.calc = {
-                a1, h1, h1_rounded,
-                a21, a22, a23,
-                yhat1, yhat2, yhat3,
-                loss,
-                dL_da21, dL_da22, dL_da23,
-                dL_dw231,
-                dL_dh1, dh1_da1, dL_dW1
-            };
-        }
-
-        // ==================== STEP DEFINITIONS (HINGLISH) ====================
-        function getStepsForMode(mode) {
-            const c = state.calc;
-            if (mode === 'forward') {
-                return [
-                    {
-                        title: "Step 1: Input se Hidden Pre-Activation (a₁)",
-                        html: `Sabse pehle input <span class="mono text-cyan-300 font-bold">x = ${state.x}</span> weight <span class="mono text-amber-300 font-bold">W₁ = ${state.W1}</span> se multiply hota hai:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-slate-900 border border-slate-800 mono text-xs text-cyan-200">
-                               a₁ = W₁ × x = ${state.W1} × ${state.x} = <b>${c.a1.toFixed(2)}</b>
-                               </div>`,
-                        activeNodes: ['node-x', 'node-a1'],
-                        forwardEdges: ['edge-W1-flow']
-                    },
-                    {
-                        title: "Step 2: Hidden Sigmoid Output (h₁) — [Q53 Answer]",
-                        html: `Ab <span class="mono text-white font-bold">a₁ = ${c.a1.toFixed(2)}</span> ke upar <b>Sigmoid function</b> lagta hai jo value ko 0 aur 1 ke beech daba deta hai:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-slate-900 border border-emerald-500/30 mono text-xs text-emerald-300">
-                               h₁ = σ(${c.a1.toFixed(2)}) = 1 / (1 + e⁻² ) ≈ <b>${c.h1_rounded.toFixed(2)}</b> (Q53 ka Answer!)
-                               </div>`,
-                        activeNodes: ['node-a1', 'node-h1'],
-                        forwardEdges: ['edge-sig-flow']
-                    },
-                    {
-                        title: "Step 3: Output Pre-Activations (a₂₁, a₂₂, a₂₃)",
-                        html: `Ab yeh akela <span class="mono text-emerald-300 font-bold">h₁ = ${c.h1_rounded.toFixed(2)}</span> aage <b>3 alag-alag rasto (branches)</b> par jaata hai aur teeno weights se multiply hota hai:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-slate-900 border border-slate-800 mono text-xs space-y-1">
-                               <div>• Top (j=1): a₂₁ = w₂₁₁ × h₁ = (-1) × ${c.h1_rounded.toFixed(2)} = <b>${c.a21.toFixed(2)}</b></div>
-                               <div>• Mid (j=2): a₂₂ = w₂₂₁ × h₁ = (1) × ${c.h1_rounded.toFixed(2)} = <b>${c.a22.toFixed(2)}</b></div>
-                               <div class="text-amber-300">• Bot (j=3): a₂₃ = w₂₃₁ × h₁ = (${state.w231}) × ${c.h1_rounded.toFixed(2)} = <b>${c.a23.toFixed(2)}</b></div>
-                               </div>`,
-                        activeNodes: ['node-h1', 'node-a21', 'node-a22', 'node-a23'],
-                        forwardEdges: ['edge-w211-flow', 'edge-w221-flow', 'edge-w231-flow']
-                    },
-                    {
-                        title: "Step 4: Softmax Probabilities (ŷ₁, ŷ₂, ŷ₃)",
-                        html: `Teeno pre-activations par <b>Softmax</b> lagta hai (<span class="mono">e^(a₂ⱼ) / ∑e^(a₂ₖ)</span>) taaki teeno probabilities ka sum = 1 ho jaaye:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-slate-900 border border-purple-500/30 mono text-xs text-purple-200">
-                               ŷ₁ = <b>${c.yhat1.toFixed(3)}</b> &nbsp;|&nbsp; ŷ₂ = <b>${c.yhat2.toFixed(3)}</b> &nbsp;|&nbsp; ŷ₃ = <b>${c.yhat3.toFixed(3)}</b>
-                               </div>`,
-                        activeNodes: ['node-yhat1', 'node-yhat2', 'node-yhat3'],
-                        forwardEdges: ['edge-sm1-flow', 'edge-sm2-flow', 'edge-sm3-flow']
-                    },
-                    {
-                        title: "Step 5: Cross-Entropy Loss (L) — [Q54 Answer]",
-                        html: `Question mein True Label <span class="mono text-emerald-300 font-bold">y = [0, 1, 0]</span> diya hai (yaani sirf 2nd class true hai, baaki 0 hain):<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-slate-900 border border-rose-500/40 mono text-xs text-rose-200">
-                               L = -[ 0·ln(ŷ₁) + 1·ln(${c.yhat2.toFixed(3)}) + 0·ln(ŷ₃) ] = -ln(${c.yhat2.toFixed(3)}) = <b>${c.loss.toFixed(2)}</b> (Q54 Ans)
-                               </div>`,
-                        activeNodes: ['node-yhat2', 'node-loss'],
-                        forwardEdges: []
-                    }
-                ];
-            } else if (mode === 'back_w231') {
-                return [
-                    {
-                        title: "Step 1 (Q55): Humein ∂L / ∂w₂₃₁ nikalna hai — Rasta Dekho!",
-                        html: `Aapki handwritten photo mein <b>laal (red) pen</b> se likha hai:<br>
-                               <span class="mono text-amber-300 font-bold">w₂₃₁</span> sirf <b>3rd (sabse neeche wali) branch</b> mein hai जो <span class="mono text-emerald-300">h₁</span> ko <span class="mono text-white">a₂₃</span> se jodti hai! Isliye Loss <span class="mono text-rose-400">L</span> se ulta chalte waqt hum <span class="mono text-rose-300 font-bold">L → a₂₃ → w₂₃₁</span> ka rasta pakdenge:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-rose-950/40 border border-rose-500/40 mono text-xs text-rose-200">
-                               Chain Rule: &nbsp; ∂L / ∂w₂₃₁ = ( ∂L / ∂a₂₃ ) × ( ∂a₂₃ / ∂w₂₃₁ )
-                               </div>`,
-                        activeNodes: ['node-loss', 'node-yhat3', 'node-a23'],
-                        backwardEdges: ['edge-loss3-flow', 'edge-sm3-flow'],
-                        showGrad3: true
-                    },
-                    {
-                        title: "Step 2 (Q55): Pehla Tukda — ∂L / ∂a₂₃ = (ŷ₃ - y₃)",
-                        html: `Jab bhi Output par <b>Softmax + Cross-Entropy Loss</b> hota hai, toh Loss se pre-activation <span class="mono">a₂ⱼ</span> tak ka derivative hamesha direct <span class="mono text-rose-300 font-bold">(ŷⱼ - yⱼ)</span> hota hai! 3rd neuron (j=3) ke liye:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-slate-900 border border-rose-500/40 mono text-xs text-rose-300">
-                               ∂L / ∂a₂₃ = ŷ₃ - y₃ = ${c.yhat3.toFixed(3)} - 0 = <b>${c.dL_da23.toFixed(3)}</b>
-                               </div>`,
-                        activeNodes: ['node-yhat3', 'node-a23'],
-                        backwardEdges: ['edge-sm3-flow'],
-                        showGrad3: true
-                    },
-                    {
-                        title: "Step 3 (Q55): Doosra Tukda (∂a₂₃ / ∂w₂₃₁ = h₁) & Final Multiply!",
-                        html: `Kyunki <span class="mono">a₂₃ = w₂₃₁ × h₁</span> hai, toh <span class="mono">w₂₃₁</span> ke respect mein derivative lene par sirf <span class="mono text-emerald-300 font-bold">h₁ = ${c.h1_rounded.toFixed(2)}</span> bachta hai (jo aapki photo mein brown pen se likha hai). Ab dono ko multiply kar do (Blue pen formula):<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-amber-500/15 border border-amber-400 mono text-xs text-amber-200">
-                               ∂L / ∂w₂₃₁ = (ŷ₃ - y₃) × h₁ = (${c.yhat3.toFixed(3)} - 0) × ${c.h1_rounded.toFixed(2)} = <b>${c.dL_dw231.toFixed(2)}</b> (Q55 Final Ans!)
-                               </div>`,
-                        activeNodes: ['node-a23', 'node-h1'],
-                        backwardEdges: ['edge-w231-flow'],
-                        showGrad3: true
-                    }
-                ];
-            } else {
-                // mode === 'back_w1' (Q56)
-                return [
-                    {
-                        title: "Step 1 (Q56): W₁ tak jaane ke liye TEENO Branches Judi Hain!",
-                        html: `Dhyan do! <span class="mono text-amber-300 font-bold">W₁</span> hidden neuron <span class="mono text-emerald-300">h₁</span> se pehle hai, aur <span class="mono text-emerald-300">h₁</span> ne aage <b>teeno output neurons (1, 2, 3)</b> ko value bheji thi. Isliye Backpropagation mein teeno branches apna-apna error wapas <span class="mono text-emerald-300">h₁</span> par bhejengi:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-slate-900 border border-purple-500/40 mono text-xs text-purple-200">
-                               ∂L / ∂W₁ = ( ∂L / ∂h₁ ) × ( ∂h₁ / ∂a₁ ) × ( ∂a₁ / ∂W₁ )
-                               </div>`,
-                        activeNodes: ['node-yhat1', 'node-yhat2', 'node-yhat3', 'node-a21', 'node-a22', 'node-a23'],
-                        backwardEdges: ['edge-sm1-flow', 'edge-sm2-flow', 'edge-sm3-flow'],
-                        showGradAll: true
-                    },
-                    {
-                        title: "Step 2 (Q56): Teeno Branches ka Sum h₁ par — ∂L / ∂h₁",
-                        html: `Har branch <span class="mono">j</span> se <span class="mono">(ŷⱼ - yⱼ) × w₂ⱼ₁</span> wapas aakar <span class="mono text-emerald-300 font-bold">h₁</span> par jud (sum ho) jaata hai:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-slate-900 border border-slate-800 mono text-xs space-y-1">
-                               <div>• Branch 1: (${c.yhat1.toFixed(3)} - 0) × (-1) = <b>${(c.dL_da21 * state.w211).toFixed(3)}</b></div>
-                               <div>• Branch 2: (${c.yhat2.toFixed(3)} - 1) × (1) = <b>${(c.dL_da22 * state.w221).toFixed(3)}</b></div>
-                               <div>• Branch 3: (${c.yhat3.toFixed(3)} - 0) × (${state.w231}) = <b>${(c.dL_da23 * state.w231).toFixed(3)}</b></div>
-                               <div class="text-emerald-300 pt-1 border-t border-slate-800">Total ∂L / ∂h₁ = Sum = <b>${c.dL_dh1.toFixed(3)}</b></div>
-                               </div>`,
-                        activeNodes: ['node-a21', 'node-a22', 'node-a23', 'node-h1'],
-                        backwardEdges: ['edge-w211-flow', 'edge-w221-flow', 'edge-w231-flow'],
-                        showGradAll: true
-                    },
-                    {
-                        title: "Step 3 (Q56): Sigmoid Derivative × Input x — Final ∂L / ∂W₁",
-                        html: `Ab <span class="mono">h₁</span> se <span class="mono">a₁</span> ka Sigmoid derivative <span class="mono text-emerald-300">h₁(1 - h₁) = ${c.h1_rounded.toFixed(2)}×(1 - ${c.h1_rounded.toFixed(2)}) = ${c.dh1_da1.toFixed(4)}</span> aur <span class="mono">∂a₁/∂W₁ = x = ${state.x}</span> multiply karo:<br>
-                               <div class="mt-1.5 p-2 rounded-lg bg-purple-500/15 border border-purple-400 mono text-xs text-purple-200">
-                               ∂L / ∂W₁ = ${c.dL_dh1.toFixed(3)} × ${c.dh1_da1.toFixed(4)} × ${state.x} = <b>${c.dL_dW1.toFixed(2)}</b> (Q56 Ans: 0.12!)
-                               </div>`,
-                        activeNodes: ['node-h1', 'node-a1', 'node-x'],
-                        backwardEdges: ['edge-sig-flow', 'edge-W1-flow'],
-                        showGradAll: false
-                    }
-                ];
-            }
-        }
-
-        // ==================== UI & SVG RENDERING ====================
-        function renderAll() {
-            computeNetwork();
-            const c = state.calc;
-
-            // Update SVG text values
-            document.getElementById('svg-val-x').textContent = state.x;
-            document.getElementById('svg-val-W1').textContent = state.W1;
-            document.getElementById('svg-val-w211').textContent = state.w211;
-            document.getElementById('svg-val-w221').textContent = state.w221;
-            document.getElementById('svg-val-w231').textContent = state.w231;
-
-            document.getElementById('svg-val-a1').textContent = c.a1.toFixed(2);
-            document.getElementById('svg-val-h1').textContent = c.h1_rounded.toFixed(2);
-
-            document.getElementById('svg-val-a21').textContent = c.a21.toFixed(2);
-            document.getElementById('svg-val-a22').textContent = c.a22.toFixed(2);
-            document.getElementById('svg-val-a23').textContent = c.a23.toFixed(2);
-
-            document.getElementById('svg-val-yhat1').textContent = c.yhat1.toFixed(3);
-            document.getElementById('svg-val-yhat2').textContent = c.yhat2.toFixed(3);
-            document.getElementById('svg-val-yhat3').textContent = c.yhat3.toFixed(3);
-
-            document.getElementById('svg-val-loss').textContent = c.loss.toFixed(2);
-
-            // Update Right Scorecard
-            document.getElementById('card-q53').textContent = c.h1_rounded.toFixed(2);
-            document.getElementById('card-q54').textContent = c.loss.toFixed(2);
-            document.getElementById('card-q55').textContent = c.dL_dw231.toFixed(2);
-            document.getElementById('card-q56').textContent = c.dL_dW1.toFixed(2);
-
-            // Render active Mode & Step
-            const steps = getStepsForMode(state.mode);
-            if (state.step >= steps.length) state.step = steps.length - 1;
-            const cur = steps[state.step];
-
-            // Update Mode Badge
-            const badge = document.getElementById('mode-badge');
-            if (state.mode === 'forward') {
-                badge.textContent = "MODE 1: FORWARD PASS (LEFT → RIGHT)";
-                badge.className = "px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40";
-            } else if (state.mode === 'back_w231') {
-                badge.textContent = "MODE 2: Q55 BACKPROP FOR w_231 (RIGHT → LEFT)";
-                badge.className = "px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40";
-            } else {
-                badge.textContent = "MODE 3: Q56 BACKPROP FOR W_1 (ALL 3 BRANCHES)";
-                badge.className = "px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40";
-            }
-
-            document.getElementById('step-counter').textContent = `Step ${state.step + 1} / ${steps.length}`;
-            document.getElementById('btn-prev').disabled = (state.step === 0);
-
-            // Step pills
-            const pillsContainer = document.getElementById('step-pills');
-            pillsContainer.style.gridTemplateColumns = `repeat(${steps.length}, minmax(0, 1fr))`;
-            pillsContainer.innerHTML = steps.map((s, idx) => `
-                <button onclick="goToStep(${idx})" class="h-2 rounded-full transition-all ${idx === state.step
-                    ? (state.mode === 'forward' ? 'bg-cyan-400 shadow-sm shadow-cyan-400' : 'bg-rose-500 shadow-sm shadow-rose-500')
-                    : (idx < state.step ? 'bg-slate-600' : 'bg-slate-800')
-                }"></button>
-            `).join('');
-
-            // Explanation HTML
-            document.getElementById('step-explanation').innerHTML = `
-                <div class="font-bold text-white mb-1">${cur.title}</div>
-                <div class="text-slate-300">${cur.html}</div>
-            `;
-
-            // Reset all SVG highlights
-            const allNodes = ['node-x', 'node-a1', 'node-h1', 'node-a21', 'node-a22', 'node-a23', 'node-yhat1', 'node-yhat2', 'node-yhat3', 'node-loss'];
-            allNodes.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.remove('glow-active');
-            });
-
-            const allFlowEdges = [
-                'edge-W1-flow', 'edge-sig-flow',
-                'edge-w211-flow', 'edge-w221-flow', 'edge-w231-flow',
-                'edge-sm1-flow', 'edge-sm2-flow', 'edge-sm3-flow',
-                'edge-loss3-flow'
-            ];
-            allFlowEdges.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.setAttribute('stroke', 'transparent');
-                    el.classList.remove('flow-forward', 'flow-backward');
-                    el.removeAttribute('marker-end');
-                    el.removeAttribute('marker-start');
-                }
-            });
-
-            // Highlight active nodes
-            (cur.activeNodes || []).forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('glow-active');
-            });
-
-            // Animate forward edges
-            (cur.forwardEdges || []).forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.setAttribute('stroke', '#22d3ee');
-                    el.classList.add('flow-forward');
-                    el.setAttribute('marker-end', 'url(#arrow-cyan)');
-                }
-            });
-
-            // Animate backward edges
-            (cur.backwardEdges || []).forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.setAttribute('stroke', '#fb7185');
-                    el.classList.add('flow-backward');
-                }
-            });
-
-            // Overlays
-            document.getElementById('grad-overlay-branch3').style.opacity = (cur.showGrad3 || cur.showGradAll) ? '1' : '0';
-            document.getElementById('grad-overlay-branch1').style.opacity = cur.showGradAll ? '1' : '0';
-            document.getElementById('grad-overlay-branch2').style.opacity = cur.showGradAll ? '1' : '0';
-        }
-
-        // ==================== INTERACTIVE INSPECTOR (HINGLISH DECODER) ====================
-        function inspectElement(key) {
-            const c = state.calc;
-            const tag = document.getElementById('inspector-tag');
-            const box = document.getElementById('inspector-content');
-
-            const dictionary = {
-                'w231': {
-                    label: 'w_231 (Target Weight Q55)',
-                    body: `
-                        <p class="font-semibold text-amber-300">📌 "w_231" ke 3 numbers (2, 3, 1) ka kya matlab hai?</p>
-                        <ul class="list-disc pl-4 space-y-1 text-slate-300">
-                            <li><b>2 (Pehla digit):</b> Layer number = <b>2nd Layer</b> (Output layer).</li>
-                            <li><b>3 (Doosra digit):</b> Destination = <b>3rd Output Neuron</b> (<span class="mono">a₂₃</span>).</li>
-                            <li><b>1 (Teesra digit):</b> Source = <b>1st Hidden Neuron</b> (<span class="mono">h₁</span>) se aa raha hai.</li>
-                        </ul>
-                        <div class="p-2.5 rounded-xl bg-slate-950 border border-amber-500/40 mono text-xs mt-2">
-                            <div class="text-amber-300 font-bold mb-1">Aapki Photo ka Formula (Q55):</div>
-                            <div>∂L / ∂w₂₃₁ = (∂L / ∂a₂₃) × (∂a₂₃ / ∂w₂₃₁)</div>
-                            <div>= (ŷ₃ - y₃) × h₁</div>
-                            <div class="text-emerald-400 font-bold mt-1">= (${c.yhat3.toFixed(3)} - 0) × ${c.h1_rounded.toFixed(2)} = ${c.dL_dw231.toFixed(2)}</div>
-                        </div>
-                    `
-                },
-                'shortcut': {
-                    label: '∂L/∂a_2j = (ŷ_j - y_j)',
-                    body: `
-                        <p class="font-semibold text-rose-300">📌 (ŷ₃ - y₃) direct kaise aaya?</p>
-                        <p>Jab humne pehle <b>3×3 Softmax Jacobian Matrix</b> padha tha, tab woh akela Softmax tha. Lekin jab Softmax ke aage <b>Cross-Entropy Loss</b> (<span class="mono">-∑ y_k ln(ŷ_k)</span>) lagta hai, toh Chain Rule lagane par:</p>
-                        <div class="p-2 rounded-lg bg-slate-950 border border-slate-800 mono text-xs my-1.5 text-rose-200">
-                            ∂L / ∂a₂ⱼ = ŷⱼ - yⱼ
-                        </div>
-                        <p>Saare tough terms कट (cancel ho) jaate hain! Bas <b>(Predicted Probability − True Label)</b> bachta hai:</p>
-                        <ul class="list-disc pl-4 text-xs mono space-y-1 mt-1">
-                            <li>j=1: ŷ₁ - y₁ = ${c.yhat1.toFixed(3)} - 0 = <b>+${c.dL_da21.toFixed(3)}</b></li>
-                            <li>j=2: ŷ₂ - y₂ = ${c.yhat2.toFixed(3)} - 1 = <b>${c.dL_da22.toFixed(3)}</b></li>
-                            <li class="text-amber-300">j=3: ŷ₃ - y₃ = ${c.yhat3.toFixed(3)} - 0 = <b>+${c.dL_da23.toFixed(3)}</b></li>
-                        </ul>
-                    `
-                },
-                'q55_vs_q56': {
-                    label: 'Q55 vs Q56 Difference',
-                    body: `
-                        <p class="font-semibold text-purple-300">📌 Q55 mein sirf 1 branch aur Q56 mein 3 branches ka sum kyun?</p>
-                        <p><b>Q55 (<span class="mono">w₂₃₁</span>):</b> Weight <span class="mono">w₂₃₁</span> sirf <span class="mono">a₂₃</span> ko banata hai (<span class="mono">a₂₁</span> aur <span class="mono">a₂₂</span> mein <span class="mono">w₂₃₁</span> hai hi nahi!). Isliye sirf <span class="mono">a₂₃</span> ka gradient <span class="mono">(ŷ₃ - y₃)</span> kaam aata hai.</p>
-                        <p class="mt-1.5"><b>Q56 (<span class="mono">W₁</span>):</b> Weight <span class="mono">W₁</span> banata hai <span class="mono">h₁</span> ko, aur <span class="mono">h₁</span> teeno (<span class="mono">a₂₁, a₂₂, a₂₃</span>) mein jaata hai! Isliye <span class="mono">W₁</span> ko badalne se teeno outputs badalte hain, toh Backprop mein teeno branches ka gradient <span class="mono">∑(ŷⱼ - yⱼ)w₂ⱼ₁</span> judta hai.</p>
-                    `
-                },
-                'x': {
-                    label: 'x = h_0 (Input)',
-                    body: `<p>Yeh network ka starting input hai: <span class="mono text-cyan-300 font-bold">x = ${state.x}</span>. Question mein isko <span class="mono">h₀</span> bhi bola gaya hai.</p>`
-                },
-                'W1': {
-                    label: 'W_1 (First Layer Weight)',
-                    body: `<p>Input <span class="mono">x</span> aur Hidden neuron ke beech ka weight <span class="mono text-amber-300 font-bold">W₁ = ${state.W1}</span>. Q56 mein isi ka gradient poocha gaya hai (<span class="mono">∂L/∂W₁ = ${c.dL_dW1.toFixed(2)}</span>).</p>`
-                },
-                'a1': {
-                    label: 'a_1 (Hidden Pre-Activation)',
-                    body: `<p>Sigmoid lagne se pehle ki value: <span class="mono text-white font-bold">a₁ = W₁ × x = ${state.W1} × ${state.x} = ${c.a1.toFixed(2)}</span>.</p>`
-                },
-                'h1': {
-                    label: 'h_1 (Hidden Output - Q53)',
-                    body: `<p>Hidden neuron ka final output (Q53 ka answer):<br><span class="mono text-emerald-300 font-bold">h₁ = σ(a₁) = 1 / (1 + e⁻²) ≈ ${c.h1_rounded.toFixed(2)}</span>.<br>Backpropagation mein jab hum <span class="mono">h₁</span> se <span class="mono">a₁</span> par ulta jaate hain, toh Sigmoid ka derivative <span class="mono">h₁(1 - h₁)</span> multiply hota hai.</p>`
-                },
-                'w211': {
-                    label: 'w_211 = -1',
-                    body: `<p>2nd Layer, 1st Output Neuron, 1st Hidden Neuron se aane wala weight (<span class="mono">w₂₁₁ = -1</span>).</p>`
-                },
-                'w221': {
-                    label: 'w_221 = 1',
-                    body: `<p>2nd Layer, 2nd Output Neuron, 1st Hidden Neuron se aane wala weight (<span class="mono">w₂₂₁ = 1</span>).</p>`
-                },
-                'a21': {
-                    label: 'a_21 (Output 1 Pre-Activation)',
-                    body: `<p>Pehle output neuron ka logit: <span class="mono">a₂₁ = w₂₁₁ × h₁ = -1 × ${c.h1_rounded.toFixed(2)} = ${c.a21.toFixed(2)}</span>.</p>`
-                },
-                'a22': {
-                    label: 'a_22 (Output 2 Pre-Activation)',
-                    body: `<p>Doosre output neuron ka logit: <span class="mono">a₂₂ = w₂₂₁ × h₁ = 1 × ${c.h1_rounded.toFixed(2)} = ${c.a22.toFixed(2)}</span>.</p>`
-                },
-                'a23': {
-                    label: 'a_23 (Output 3 Pre-Activation)',
-                    body: `<p>Teesre output neuron ka logit: <span class="mono">a₂₃ = w₂₃₁ × h₁ = ${state.w231} × ${c.h1_rounded.toFixed(2)} = ${c.a23.toFixed(2)}</span>.<br>Iska derivative <span class="mono">w₂₃₁</span> ke respect mein lene par <span class="mono">∂a₂₃/∂w₂₃₁ = h₁ = ${c.h1_rounded.toFixed(2)}</span> aata hai.</p>`
-                },
-                'yhat1': {
-                    label: 'ŷ_1 (Class 1 Probability)',
-                    body: `<p>Class 1 ki Softmax probability: <span class="mono">${c.yhat1.toFixed(3)}</span>. True label <span class="mono">y₁ = 0</span> hai.</p>`
-                },
-                'yhat2': {
-                    label: 'ŷ_2 (Class 2 Probability)',
-                    body: `<p>Class 2 ki Softmax probability: <span class="mono">${c.yhat2.toFixed(3)}</span>. True label <span class="mono text-emerald-400">y₂ = 1</span> hai (Yahi true class hai!).</p>`
-                },
-                'yhat3': {
-                    label: 'ŷ_3 (Class 3 Probability)',
-                    body: `<p>Class 3 ki Softmax probability: <span class="mono">${c.yhat3.toFixed(3)}</span>. True label <span class="mono">y₃ = 0</span> hai. Q55 mein <span class="mono">(ŷ₃ - y₃) = ${c.yhat3.toFixed(3)} - 0 = ${c.dL_da23.toFixed(3)}</span> use hota hai.</p>`
-                },
-                'loss': {
-                    label: 'Cross-Entropy Loss (Q54)',
-                    body: `<p>True vector <span class="mono">y = [0, 1, 0]</span> hai, toh sirf 2nd term bachta hai:<br><span class="mono text-rose-300 font-bold">L = -1 × ln(ŷ₂) = -ln(${c.yhat2.toFixed(3)}) = ${c.loss.toFixed(2)}</span>.</p>`
-                }
-            };
-
-            const item = dictionary[key] || dictionary['w231'];
-            tag.textContent = item.label;
-            box.innerHTML = item.body;
-        }
-
-        // ==================== NAVIGATION & CONTROLS ====================
-        function setMode(mode) {
-            state.mode = mode;
-            state.step = 0;
-
-            // Update tab button styles
-            const tabs = {
-                'forward': document.getElementById('tab-forward'),
-                'back_w231': document.getElementById('tab-back_w231'),
-                'back_w1': document.getElementById('tab-back_w1')
-            };
-            Object.keys(tabs).forEach(k => {
-                if (k === mode) {
-                    tabs[k].className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-cyan-500 text-slate-950 shadow";
-                } else {
-                    tabs[k].className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-300 hover:text-white";
-                }
-            });
-
-            if (mode === 'back_w231') inspectElement('w231');
-            else if (mode === 'back_w1') inspectElement('q55_vs_q56');
-            else inspectElement('h1');
-
-            renderAll();
-        }
-
-        function nextStep() {
-            const steps = getStepsForMode(state.mode);
-            if (state.step < steps.length - 1) {
-                state.step++;
-                renderAll();
-            } else {
-                // Loop back to 0 or switch mode
-                state.step = 0;
-                renderAll();
-            }
-        }
-
-        function prevStep() {
-            if (state.step > 0) {
-                state.step--;
-                renderAll();
-            }
-        }
-
-        function goToStep(idx) {
-            state.step = idx;
-            renderAll();
-        }
-
-        function updateFromSliders() {
-            state.x = parseFloat(document.getElementById('slider-x').value);
-            state.W1 = parseFloat(document.getElementById('slider-W1').value);
-            state.w231 = parseFloat(document.getElementById('slider-w231').value);
-
-            document.getElementById('lbl-slider-x').textContent = state.x.toFixed(1);
-            document.getElementById('lbl-slider-W1').textContent = state.W1.toFixed(1);
-            document.getElementById('lbl-slider-w231').textContent = state.w231.toFixed(1);
-
-            renderAll();
-            inspectElement('w231');
-        }
-
-        function resetExamValues() {
-            state.x = 2.0;
-            state.W1 = 1.0;
-            state.w211 = -1.0;
-            state.w221 = 1.0;
-            state.w231 = 2.0;
-
-            document.getElementById('slider-x').value = 2;
-            document.getElementById('slider-W1').value = 1;
-            document.getElementById('slider-w231').value = 2;
-
-            updateFromSliders();
-        }
-
-        // Initialize on load
-        window.onload = function () {
-            setMode('back_w231');
-        };
-    </script>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Q55 · Gradient of <span class="mono">w<sub>231</sub></span>, step by step</h1>
+    <p>Quiz-1 Sept 25 (Q53–56): one hidden sigmoid neuron, 3-class softmax output, cross-entropy loss.</p>
+  </header>
+
+  <div class="q">
+    <b>Q55.</b> Use cross-entropy loss and compute the gradient of <span class="mono">w<sub>231</sub></span> (two decimals). &nbsp;Answer range: <span class="mono">0.54 – 0.64</span>
+    <div class="given mono">
+      <span>x = h₀ = 2</span><span>W₁ = 1</span><span>W₂ = [w₂₁₁, w₂₂₁, w₂₃₁] = [−1, 1, 2]</span><span>y = [0, 1, 0]</span><span>no bias</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Network</h2>
+      <svg id="net" viewBox="0 0 640 330" width="100%" role="img" aria-label="Network diagram: x to h1 to three softmax outputs">
+        <!-- edges -->
+        <line id="e1"  class="edge" x1="88"  y1="165" x2="232" y2="165"/>
+        <line id="e21" class="edge" x1="268" y1="158" x2="412" y2="62"/>
+        <line id="e22" class="edge" x1="268" y1="165" x2="412" y2="165"/>
+        <line id="e23" class="edge" x1="268" y1="172" x2="412" y2="268"/>
+        <path id="eL1" class="edge" d="M448 60 C 520 60, 520 150, 560 160"/>
+        <path id="eL2" class="edge" d="M448 165 L 560 165"/>
+        <path id="eL3" class="edge" d="M448 270 C 520 270, 520 180, 560 170"/>
+
+        <!-- weight tags -->
+        <g class="wtag" id="tW1"><rect x="132" y="138" width="56" height="22" rx="5"/><text class="wlbl" x="160" y="153" text-anchor="middle">W₁=1</text></g>
+        <g class="wtag" id="t21"><rect x="296" y="86" width="74" height="22" rx="5"/><text class="wlbl" x="333" y="101" text-anchor="middle">w₂₁₁=−1</text></g>
+        <g class="wtag" id="t22"><rect x="300" y="142" width="70" height="22" rx="5"/><text class="wlbl" x="335" y="157" text-anchor="middle">w₂₂₁=1</text></g>
+        <g class="wtag" id="t23"><rect x="296" y="222" width="74" height="22" rx="5"/><text class="wlbl" x="333" y="237" text-anchor="middle">w₂₃₁=2</text></g>
+
+        <!-- nodes -->
+        <circle id="nx"  class="node" cx="70"  cy="165" r="18"/>
+        <circle id="nh"  class="node" cx="250" cy="165" r="20"/>
+        <circle id="no1" class="node" cx="430" cy="60"  r="18"/>
+        <circle id="no2" class="node" cx="430" cy="165" r="18"/>
+        <circle id="no3" class="node" cx="430" cy="270" r="18"/>
+        <rect   id="nL"  class="node" x="560" y="140" width="62" height="50" rx="8"/>
+
+        <text x="70"  y="170" text-anchor="middle" font-size="14">x</text>
+        <text x="250" y="170" text-anchor="middle" font-size="14">h₁</text>
+        <text x="430" y="65"  text-anchor="middle" font-size="13">1</text>
+        <text x="430" y="170" text-anchor="middle" font-size="13">2</text>
+        <text x="430" y="275" text-anchor="middle" font-size="13">3</text>
+        <text x="591" y="170" text-anchor="middle" font-size="15" font-weight="600">L</text>
+
+        <text class="lbl" x="70"  y="128" text-anchor="middle">input</text>
+        <text class="lbl" x="250" y="124" text-anchor="middle">sigmoid</text>
+        <text class="lbl" x="430" y="20"  text-anchor="middle">softmax</text>
+        <text class="lbl" x="591" y="128" text-anchor="middle">CE loss</text>
+
+        <!-- values -->
+        <text id="vx"  class="val f show" x="70"  y="206" text-anchor="middle">2</text>
+        <text id="va1" class="val f" x="250" y="210" text-anchor="middle">a₁=2</text>
+        <text id="vh1" class="val f" x="250" y="228" text-anchor="middle">h₁=0.88</text>
+        <text id="va21" class="val f" x="430" y="96"  text-anchor="middle">a=−0.88</text>
+        <text id="va22" class="val f" x="430" y="201" text-anchor="middle">a=0.88</text>
+        <text id="va23" class="val f" x="430" y="306" text-anchor="middle">a=1.76</text>
+        <text id="vy1" class="val f" x="478" y="46"  text-anchor="start">ŷ=0.048 (y=0)</text>
+        <text id="vy2" class="val f" x="478" y="151" text-anchor="start">ŷ=0.279 (y=1)</text>
+        <text id="vy3" class="val f" x="478" y="292" text-anchor="start">ŷ=0.673 (y=0)</text>
+        <text id="vL"  class="val f" x="591" y="212" text-anchor="middle">1.28</text>
+        <text id="vg3" class="val b" x="478" y="250" text-anchor="start">∂L/∂a₂₃=0.673</text>
+        <text id="vgw" class="val b" x="333" y="264" text-anchor="middle">∂L/∂w₂₃₁=0.59</text>
+      </svg>
+
+      <div class="stepper">
+        <button id="prev">← Back</button>
+        <button id="next" class="primary">Next →</button>
+        <button id="play">▶ Play</button>
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span id="phase" class="phase f">Forward</span>
+      <h3 id="stepTitle"></h3>
+      <div id="stepBody"></div>
+    </div>
+  </div>
+
+  <div class="card" id="lab">
+    <h2>Play with w₂₃₁ — what the gradient actually means</h2>
+    <div class="labgrid">
+      <svg id="plot" viewBox="0 0 520 260" width="100%" role="img" aria-label="Loss as a function of w231 with tangent line"></svg>
+      <div>
+        <label for="w" class="mono">w₂₃₁ = <b id="wv">2.00</b></label>
+        <input id="w" type="range" min="-3" max="6" step="0.01" value="2">
+        <div class="readout" id="ro"></div>
+        <p class="note" style="margin-top:12px">The gradient is the slope of the dashed tangent. At w₂₃₁ = 2 the slope is +0.59: increasing w₂₃₁ raises the loss, because it pushes probability toward class 3, which is the <i>wrong</i> class. Gradient descent therefore moves w₂₃₁ <i>down</i>: w ← w − η·0.59.</p>
+        <button id="gd">Take one GD step (η = 1)</button> <button id="reset">Reset to 2</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>Values are rounded to two or three decimals as in the exam solution. Exact: h₁ = 0.8808, ŷ₃ = 0.6729, ∂L/∂w₂₃₁ = 0.5927.</footer>
+</div>
+
+<script>
+const sig = z => 1 / (1 + Math.exp(-z));
+const X = 2, W1 = 1, Y = [0, 1, 0];
+
+const steps = [
+  { ph: "f", t: "The setup",
+    on: { nodes: ["nx"] },
+    b: `<p>We want to know how the loss <b>L</b> changes when we nudge one weight, <span class="mono">w₂₃₁</span> (the edge from h₁ to output neuron 3, highlighted orange).</p>
+        <p>Naming: <span class="mono">w₂<b>j</b><b>i</b></span> = layer-2 weight going <i>to</i> output neuron <b>j</b> <i>from</i> hidden neuron <b>i</b>. So w₂₃₁ connects h₁ → output 3.</p>
+        <p>First we need every value in the network, so we run the forward pass.</p>`,
+    target: true },
+  { ph: "f", t: "Hidden pre-activation a₁",
+    on: { nodes: ["nx", "nh"], edges: ["e1"], vals: ["va1"] },
+    b: `<div class="eq">a₁ = W₁ · x = 1 × 2 = <span class="fw">2</span></div><p>No bias, so it's just the weight times the input.</p>` },
+  { ph: "f", t: "Hidden output h₁ = σ(a₁)",
+    on: { nodes: ["nx", "nh"], edges: ["e1"], vals: ["va1", "vh1"] },
+    b: `<div class="eq">h₁ = σ(2) = 1 / (1 + e⁻²) = 1 / 1.135 = <span class="fw">0.88</span></div>
+        <p>Remember this <b>0.88</b>: it reappears at the very end as the "input side" of w₂₃₁.</p>` },
+  { ph: "f", t: "Output pre-activations a₂ = W₂ · h₁",
+    on: { nodes: ["nx", "nh", "no1", "no2", "no3"], edges: ["e1", "e21", "e22", "e23"], vals: ["va1", "vh1", "va21", "va22", "va23"] },
+    b: `<div class="eq">a₂₁ = −1 × 0.88 = −0.88<br>a₂₂ = &nbsp;1 × 0.88 = &nbsp;0.88<br>a₂₃ = &nbsp;<span class="hl">2</span> × 0.88 = &nbsp;<span class="fw">1.76</span></div>
+        <p>Note a₂₃ is the <i>only</i> pre-activation that w₂₃₁ touches: <span class="mono">a₂₃ = w₂₃₁ · h₁</span>.</p>` },
+  { ph: "f", t: "Softmax → ŷ",
+    on: { nodes: ["nx", "nh", "no1", "no2", "no3"], edges: ["e1", "e21", "e22", "e23"], vals: ["va1", "vh1", "va21", "va22", "va23", "vy1", "vy2", "vy3"] },
+    b: `<table class="v"><tr><th>class</th><th>a₂</th><th>eᵃ</th><th>ŷ = eᵃ / Σ</th></tr>
+        <tr><td>1</td><td>−0.88</td><td>0.415</td><td>0.048</td></tr>
+        <tr><td>2</td><td>0.88</td><td>2.411</td><td>0.279</td></tr>
+        <tr class="hot"><td>3</td><td>1.76</td><td>5.812</td><td>0.673</td></tr>
+        <tr><td>Σ</td><td></td><td>8.638</td><td>1.000</td></tr></table>
+        <p>The network is 67% sure it's class 3, but the true label is class 2. That's a bad prediction, so the gradient will be large.</p>` },
+  { ph: "f", t: "Cross-entropy loss",
+    on: { nodes: ["nx", "nh", "no1", "no2", "no3", "nL"], edges: ["e1", "e21", "e22", "e23", "eL1", "eL2", "eL3"], vals: ["va1", "vh1", "va21", "va22", "va23", "vy1", "vy2", "vy3", "vL"] },
+    b: `<div class="eq">L = −Σ yⱼ ln ŷⱼ = −(0·ln 0.048 + 1·ln 0.279 + 0·ln 0.673)<br>&nbsp;&nbsp;= −ln 0.279 = <span class="fw">1.28</span></div>
+        <p>That's Q54. Forward pass done. Now go backward, from L to w₂₃₁.</p>` },
+  { ph: "b", t: "Chain rule: the path from L to w₂₃₁",
+    back: ["eL3", "e23"], hot: ["nL", "no3"], fwdVals: true,
+    b: `<p>w₂₃₁ affects L through <b>one path only</b>: w₂₃₁ → a₂₃ → (softmax) → L.</p>
+        <div class="chain"><div class="box"><small>local gradient</small><b>∂L/∂a₂₃</b></div><span class="op">×</span><div class="box"><small>local gradient</small><b>∂a₂₃/∂w₂₃₁</b></div></div>
+        <div class="eq">∂L/∂w₂₃₁ = <span class="hl">∂L/∂a₂₃</span> · <span class="hl">∂a₂₃/∂w₂₃₁</span></div>
+        <p>We compute each factor separately, then multiply.</p>` },
+  { ph: "b", t: "Factor 1: ∂L/∂a₂₃ = ŷ₃ − y₃",
+    back: ["eL3"], hot: ["nL", "no3"], fwdVals: true, vals: ["vg3"],
+    b: `<p>For softmax + cross-entropy together, the derivative collapses to a neat form: <span class="mono">∂L/∂a₂ⱼ = ŷⱼ − yⱼ</span>.</p>
+        <div class="eq">∂L/∂a₂₃ = ŷ₃ − y₃ = 0.673 − 0 = <span class="hl">0.673</span></div>
+        <table class="v"><tr><th>j</th><th>ŷⱼ</th><th>yⱼ</th><th>ŷⱼ − yⱼ</th></tr>
+        <tr><td>1</td><td>0.048</td><td>0</td><td>0.048</td></tr>
+        <tr><td>2</td><td>0.279</td><td>1</td><td>−0.721</td></tr>
+        <tr class="hot"><td>3</td><td>0.673</td><td>0</td><td>0.673</td></tr></table>
+        <p class="note">Positive means "this output is too high, push it down". Class 3 is wrong but has 67% probability, so it gets a big positive error.</p>` },
+  { ph: "b", t: "Factor 2: ∂a₂₃/∂w₂₃₁ = h₁",
+    back: ["e23"], hot: ["nh", "no3"], fwdVals: true, vals: ["vg3"],
+    b: `<div class="eq">a₂₃ = w₂₃₁ · h₁ &nbsp;⇒&nbsp; ∂a₂₃/∂w₂₃₁ = h₁ = <span class="hl">0.88</span></div>
+        <p>A weight's local gradient is always whatever flows <i>into</i> it from the left. Here that's the hidden output h₁.</p>` },
+  { ph: "g", t: "Multiply: the answer",
+    back: ["eL3", "e23"], hot: ["nh", "no3", "nL"], fwdVals: true, vals: ["vg3", "vgw"],
+    b: `<div class="chain"><div class="box lit"><small>ŷ₃ − y₃</small><b>0.673</b></div><span class="op">×</span><div class="box lit"><small>h₁</small><b>0.88</b></div><span class="op">=</span><div class="box ans"><small>∂L/∂w₂₃₁</small><b>0.59</b></div></div>
+        <div class="eq">∂L/∂w₂₃₁ = (ŷ₃ − y₃) · h₁ = 0.673 × 0.88 = 0.592 ≈ <span class="ok">0.59</span></div>
+        <p>✔ Inside the accepted range 0.54 – 0.64.</p>
+        <p class="note">General rule for this layer: ∂L/∂w₂ⱼ₁ = (ŷⱼ − yⱼ) · h₁. So the other two gradients are 0.048 × 0.88 = 0.04 and −0.721 × 0.88 = −0.63.</p>` }
+];
+
+const allNodes = ["nx", "nh", "no1", "no2", "no3", "nL"];
+const allEdges = ["e1", "e21", "e22", "e23", "eL1", "eL2", "eL3"];
+const allVals = ["va1", "vh1", "va21", "va22", "va23", "vy1", "vy2", "vy3", "vL", "vg3", "vgw"];
+const fwdAll = steps[5].on;
+const $ = id => document.getElementById(id);
+let cur = 0, timer = null;
+
+const dots = $("dots");
+steps.forEach((s, i) => {
+  const d = document.createElement("i");
+  if (s.ph !== "f") d.classList.add("bk");
+  d.title = s.t;
+  d.onclick = () => go(i);
+  dots.appendChild(d);
+});
+
+function render() {
+  const s = steps[cur];
+  allNodes.forEach(n => $(n).classList.remove("on", "hot"));
+  allEdges.forEach(e => $(e).classList.remove("on", "back", "target"));
+  allVals.forEach(v => $(v).classList.remove("show"));
+  $("vx").classList.add("show");
+
+  const on = s.fwdVals ? fwdAll : (s.on || {});
+  (on.nodes || []).forEach(n => $(n).classList.add("on"));
+  (on.edges || []).forEach(e => $(e).classList.add("on"));
+  (on.vals || []).forEach(v => $(v).classList.add("show"));
+  (s.vals || []).forEach(v => $(v).classList.add("show"));
+  (s.hot || []).forEach(n => { $(n).classList.remove("on"); $(n).classList.add("hot"); });
+  (s.back || []).forEach(e => { $(e).classList.remove("on"); $(e).classList.add("back"); });
+  if (!(s.back || []).includes("e23")) $("e23").classList.add("target");
+  $("t23").classList.add("hot");
+
+  const ph = $("phase");
+  ph.className = "phase " + s.ph;
+  ph.textContent = s.ph === "f" ? `Forward pass · ${cur + 1}/${steps.length}` : s.ph === "b" ? `Backward pass · ${cur + 1}/${steps.length}` : `Answer · ${cur + 1}/${steps.length}`;
+  $("stepTitle").textContent = s.t;
+  $("stepBody").innerHTML = s.b;
+  $("prev").disabled = cur === 0;
+  $("next").disabled = cur === steps.length - 1;
+  [...dots.children].forEach((d, i) => { d.classList.toggle("done", i <= cur); d.classList.toggle("cur", i === cur); });
+}
+function go(i) { cur = Math.max(0, Math.min(steps.length - 1, i)); render(); }
+function stop() { clearInterval(timer); timer = null; $("play").textContent = "▶ Play"; }
+$("prev").onclick = () => { stop(); go(cur - 1); };
+$("next").onclick = () => { stop(); go(cur + 1); };
+$("play").onclick = () => {
+  if (timer) return stop();
+  if (cur === steps.length - 1) go(0);
+  $("play").textContent = "❚❚ Pause";
+  timer = setInterval(() => { if (cur >= steps.length - 1) stop(); else go(cur + 1); }, 3200);
+};
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === "ArrowRight") { stop(); go(cur + 1); }
+  if (e.key === "ArrowLeft") { stop(); go(cur - 1); }
+});
+render();
+
+// ---- Lab: L as a function of w231 ----
+const h1 = sig(W1 * X);
+function forward(w) {
+  const a = [-1 * h1, 1 * h1, w * h1];
+  const ex = a.map(Math.exp), s = ex.reduce((p, q) => p + q, 0);
+  const yh = ex.map(e => e / s);
+  return { a, yh, L: -Math.log(yh[1]), g: (yh[2] - Y[2]) * h1 };
+}
+const P = { x0: 46, x1: 505, y0: 228, y1: 14, wMin: -3, wMax: 6, LMin: 0, LMax: 6 };
+const sx = w => P.x0 + (w - P.wMin) / (P.wMax - P.wMin) * (P.x1 - P.x0);
+const sy = L => P.y0 - (L - P.LMin) / (P.LMax - P.LMin) * (P.y0 - P.y1);
+const NS = "http://www.w3.org/2000/svg";
+const plot = $("plot");
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  plot.appendChild(e);
+  return e;
+}
+el("line", { class: "axis", x1: P.x0, y1: P.y0, x2: P.x1, y2: P.y0 });
+el("line", { class: "axis", x1: P.x0, y1: P.y0, x2: P.x0, y2: P.y1 });
+for (let w = -3; w <= 6; w++) el("text", { class: "tick", x: sx(w), y: P.y0 + 16, "text-anchor": "middle" }, w);
+for (let L = 0; L <= 6; L += 2) el("text", { class: "tick", x: P.x0 - 8, y: sy(L) + 4, "text-anchor": "end" }, L);
+el("text", { class: "tick", x: P.x1, y: P.y0 - 6, "text-anchor": "end" }, "w₂₃₁ →");
+el("text", { class: "tick", x: P.x0 + 6, y: P.y1 + 10 }, "L");
+let d = "";
+for (let w = P.wMin; w <= P.wMax + 1e-9; w += 0.05) d += (d ? "L" : "M") + sx(w).toFixed(1) + " " + sy(forward(w).L).toFixed(1);
+el("path", { class: "curve", d });
+const tan = el("line", { class: "tangent" });
+const pt = el("circle", { r: 6, fill: "var(--accent)" });
+const ptLbl = el("text", { class: "tick", "text-anchor": "middle" });
+
+function updateLab(w) {
+  const f = forward(w);
+  $("wv").textContent = w.toFixed(2);
+  $("w").value = w;
+  const span = 1.4;
+  const clampY = L => sy(Math.max(P.LMin - 1, Math.min(P.LMax + 1, L)));
+  tan.setAttribute("x1", sx(w - span)); tan.setAttribute("y1", clampY(f.L - span * f.g));
+  tan.setAttribute("x2", sx(w + span)); tan.setAttribute("y2", clampY(f.L + span * f.g));
+  pt.setAttribute("cx", sx(w)); pt.setAttribute("cy", sy(f.L));
+  ptLbl.setAttribute("x", sx(w)); ptLbl.setAttribute("y", sy(f.L) - 12);
+  ptLbl.textContent = "slope " + f.g.toFixed(2);
+  $("ro").innerHTML = `
+    <div><span>a₂₃ = w₂₃₁ · 0.88</span><span>${f.a[2].toFixed(2)}</span></div>
+    <div><span>ŷ = softmax(a₂)</span><span>[${f.yh.map(v => v.toFixed(3)).join(", ")}]</span></div>
+    <div><span>L = −ln ŷ₂</span><span>${f.L.toFixed(2)}</span></div>
+    <div><span>∂L/∂w₂₃₁ = ŷ₃ · 0.88</span><b>${f.g.toFixed(2)}</b></div>`;
+}
+$("w").oninput = e => updateLab(parseFloat(e.target.value));
+$("gd").onclick = () => { const w = parseFloat($("w").value); updateLab(Math.max(-3, w - forward(w).g)); };
+$("reset").onclick = () => updateLab(2);
+updateLab(2);
+</script>
 </body>
-
 </html>
